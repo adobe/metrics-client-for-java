@@ -1,0 +1,8 @@
+rootProject.name = 'metrics'
+include 'metrics-core'
+include 'metrics-graphite'
+include 'metrics-opentsdb'
+include 'metrics-codahale'
+include 'metrics-all'
+include 'metrics-guice'
+include 'metrics-sample'

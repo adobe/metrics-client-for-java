@@ -1,0 +1,7 @@
+
+dependencies {
+    compile project(':metrics-core')
+    compile project(':metrics-graphite')
+    compile project(':metrics-opentsdb')
+    compile project(':metrics-codahale')
+}
