@@ -5,7 +5,7 @@ install: true
 sudo: required
 services:
   - docker
-script: ./gradlew clean build --info
+script: ./gradlew clean build -x signArchives -x uploadArchives --info
 cache:
   directories:
     - "$HOME/.m2"

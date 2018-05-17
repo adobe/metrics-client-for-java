@@ -4,19 +4,28 @@ buildscript {
     }
 }
 
-def isReleaseBuild() {
-    return version.contains("SNAPSHOT") == false
-}
-
 plugins {
     id 'me.champeau.gradle.jmh' version '0.4.4'
     id 'net.ltgt.apt' version '0.12'
     id "net.ltgt.apt-idea" version "0.12"
 }
 
+if (!project.hasProperty("NEXUS_USERNAME")) {
+    println "No NEXUS_USERNAME found"
+    ext.NEXUS_USERNAME = ""
+}
+
+if (!project.hasProperty("NEXUS_PASSWORD")) {
+    println "No NEXUS_PASSWORD found"
+    ext.NEXUS_PASSWORD = ""
+}
+
 allprojects {
     apply plugin: 'net.ltgt.apt'
     apply plugin: 'net.ltgt.apt-idea'
+
+    apply plugin: 'maven'
+    apply plugin: 'signing'   
 }
 
 idea {
@@ -49,11 +58,73 @@ allprojects {
 
     sourceCompatibility = 1.8
 
+    repositories {
+        mavenCentral()
+    }
+
     version = VERSION_NAME
     group = GROUP
 
-    repositories {
-        mavenCentral()
+    task javadocJar(type: Jar) {
+        classifier = 'javadoc'
+        from javadoc
+    }
+
+    task sourcesJar(type: Jar) {
+        classifier = 'sources'
+        from sourceSets.main.allSource
+    }
+
+    artifacts {
+        archives javadocJar, sourcesJar
+    }
+
+    signing {
+        sign configurations.archives
+    }
+
+    uploadArchives {
+        repositories {
+            mavenDeployer {
+                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                    authentication(userName: "$NEXUS_USERNAME", password: "$NEXUS_PASSWORD")
+                }
+
+                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                    authentication(userName: "$NEXUS_USERNAME", password: "$NEXUS_PASSWORD")
+                }
+
+                pom.project {
+                    name 'Metrics client for Java'
+                    packaging 'jar'
+                    // optionally artifactId can be defined here
+                    description 'An application metrics client for Java integrated with Graphite/OpenTSDB'
+                    url 'https://github.com/adobe/metrics-client-for-java'
+
+                    scm {
+                      connection 'scm:git:https://github.com/adobe/metrics-client-for-java.git'
+                      developerConnection 'scm:git:git@github.com/adobe/metrics-client-for-java.git'
+                      url 'https://github.com/adobe/metrics-client-for-java.git'
+                    }
+
+                    licenses {
+                        license {
+                            name 'The Apache License, Version 2.0'
+                            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            id 'costimuraru'
+                            name 'Constantin Muraru'
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

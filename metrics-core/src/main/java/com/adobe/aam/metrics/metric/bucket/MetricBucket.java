@@ -28,18 +28,20 @@ public interface MetricBucket {
 	/**
 	 * @return all the metrics in the bucket
 	 */
-	public Collection<Metric> getMetrics();
+	Collection<Metric> getMetrics();
 
 	/**
 	 * Finds the metric corresponding to the child and returns it.
 	 * If none exists, one will be created and returned.
 	 *
 	 * For example: requests.succeeded, where "succeeded" is the child.
+	 *
+	 * @param child the sub-metric identifier
 	 */
-	public Metric getMetric(Object child);
+	Metric getMetric(Object child);
 
 	/**
 	 * @return the parent metric (eg. requests)
 	 */
-	public Metric getParentMetric();
+	Metric getParentMetric();
 }

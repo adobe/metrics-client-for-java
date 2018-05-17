@@ -22,9 +22,12 @@ import java.util.Optional;
  * request, which happens internally, in Jetty/Tomcat.
  * Instead, you can use a ValueProvider to fetch the number of rejected requests, periodically, from your app.
  *
+ * <pre>
+ * {@code
  * MetricAgent.builder()
  * 		.putMetricValueProvider(Metrics.REQUESTS_REJECTED, () -> Optional.of(webServer.getRejectedRequestsCount())
- *
+ * }
+ * </pre>
  * The MetricAgent will call webServer.getRejectedRequestsCount() on each cycle, and populate the metric with the
  * provided value.
  */

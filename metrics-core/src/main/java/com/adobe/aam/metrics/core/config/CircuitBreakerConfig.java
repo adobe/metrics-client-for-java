@@ -35,6 +35,7 @@ public interface CircuitBreakerConfig {
     /**
      * Specify if a circuit breaker mechanism should be used when dispatching metrics to the
      * backend.
+     * @return true if circuit breaker is enabled, false otherwise
      */
     @Value.Default
     default boolean enabled() {
@@ -51,6 +52,7 @@ public interface CircuitBreakerConfig {
      * <p>
      * When this threshold is exceeded, all further client calls are forwarded to the
      * Backend according to the normal flow.
+     *
      */
     @Value.Default
     default int successThreshold() {
