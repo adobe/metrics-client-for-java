@@ -1,5 +1,7 @@
 # Metrics Library for Java
 
+[![Build Status](https://travis-ci.org/adobe/metrics-client-for-java.svg?branch=master)](https://travis-ci.org/adobe/metrics-client-for-java)
+
 An application metrics client integrated with Graphite/OpenTSDB/more to come.
 Offers the following features:
 - sends the metrics in batch to the backend
@@ -8,13 +10,39 @@ Offers the following features:
     - useful for migrating to one backend to another
     - useful for sending a set of metrics to one backend (e.g. a sub-set of importants metrics used for alerts in Prometheus) and another set to another backend (e.g. all metrics to OpenTSDB).
 
+# Usage
+
+## Maven
+```xml
+<!-- https://mvnrepository.com/artifact/com.adobe.aam/metrics-all -->
+<dependency>
+    <groupId>com.adobe.aam</groupId>
+    <artifactId>metrics-all</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
+## Gradle
+```
+// https://mvnrepository.com/artifact/com.adobe.aam/metrics-all
+compile group: 'com.adobe.aam', name: 'metrics-all', version: '1.0.0'
+```
+
+# Sample application
+
+You can find a demo app in this project: [Sample Application](https://github.com/adobe/metrics-client-for-java/tree/master/metrics-sample)
+
+# Java docs
+
+You can find here the [Java docs](http://javadoc.io/doc/com.adobe.aam/metrics-core/1.0.0)
+
 # Architecture
 
 ![EC2 Shredder diagram](https://user-images.githubusercontent.com/952836/36027791-5fb02010-0da5-11e8-88d7-61fc9bce60f2.png)
 
 # Sample App: How to use the metrics library
 
-See metrics-sample app, for a fully fledged demo.
+See [metrics-sample](https://github.com/adobe/metrics-client-for-java/tree/master/metrics-sample) app, for a fully fledged demo.
 
 # Create a metric
 
@@ -144,3 +172,28 @@ Advantages for doing this:
 - fail safe (retry + circuit breaker)
 - resets the metrics once sent to the backend (useful for Codahale Counters due to https://github.com/dropwizard/metrics/issues/143)
 - send to multiple backends in parallel
+
+
+# Build
+
+To build this project:
+
+```
+$ git clone git@github.com:adobe/metrics-client-for-java.git
+$ cd metrics-client-for-java/
+$ ./gradlew build
+```
+
+# Bugs and Feedback
+
+For bugs, questions and discussions please use the [GitHub Issues](https://github.com/adobe/metrics-client-for-java/issues).
+
+# LICENSE
+
+Copyright 2018 Adobe Systems Incorporated
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
