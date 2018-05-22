@@ -22,6 +22,7 @@ import com.adobe.aam.metrics.metric.Metric;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,22 +32,36 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 
 public class DefaultMetricClient implements BufferedMetricClient {
 
-    private static Logger logger = LoggerFactory.getLogger(DefaultMetricClient.class);
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private static final Logger logger = LoggerFactory.getLogger(DefaultMetricClient.class);
+    private final ExecutorService executor;
     private final Queue<MetricSnapshot> queue;
     private final Collection<Publisher> metricPublishers;
-    private Tags tags;
+    private final Tags tags;
+
+    public DefaultMetricClient(Queue<MetricSnapshot> queue,
+                               Collection<Publisher> metricPublishers,
+                               Tags tags,
+                               ExecutorService executorService) {
+        this.queue = queue;
+        this.metricPublishers = metricPublishers;
+        this.tags = tags;
+        this.executor = executorService;
+    }
 
     public DefaultMetricClient(Queue<MetricSnapshot> queue,
                                Collection<Publisher> metricPublishers,
                                Tags tags) {
-        this.queue = queue;
-        this.metricPublishers = metricPublishers;
-        this.tags = tags;
+        this(
+                queue,
+                metricPublishers,
+                tags,
+                MoreExecutors.getExitingExecutorService((ThreadPoolExecutor) Executors.newCachedThreadPool())
+        );
     }
 
     public DefaultMetricClient(Queue<MetricSnapshot> queue,

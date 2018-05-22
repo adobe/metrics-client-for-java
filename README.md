@@ -18,14 +18,14 @@ Offers the following features:
 <dependency>
     <groupId>com.adobe.aam</groupId>
     <artifactId>metrics-all</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
 ## Gradle
 ```
 // https://mvnrepository.com/artifact/com.adobe.aam/metrics-all
-compile group: 'com.adobe.aam', name: 'metrics-all', version: '1.0.0'
+compile group: 'com.adobe.aam', name: 'metrics-all', version: '1.0.1'
 ```
 
 # Sample application
@@ -34,7 +34,7 @@ You can find a demo app in this project: [Sample Application](https://github.com
 
 # Java docs
 
-You can find here the [Java docs](http://javadoc.io/doc/com.adobe.aam/metrics-core/1.0.0)
+You can find here the [Java docs](http://javadoc.io/doc/com.adobe.aam/metrics-core)
 
 # Architecture
 
