@@ -13,7 +13,7 @@
 
 package com.adobe.aam.metrics.sample;
 
-import com.adobe.aam.metrics.core.agent.MetricAgent;
+import com.adobe.aam.metrics.agent.MetricAgent;
 import com.adobe.aam.metrics.sample.di.InjectorBuilder;
 import com.adobe.aam.metrics.sample.http.HttpDispatcher;
 import com.adobe.aam.metrics.sample.http.HttpRequest;

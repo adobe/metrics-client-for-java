@@ -11,9 +11,9 @@
  *
  */
 
-package com.adobe.aam.metrics.core.agent;
+package com.adobe.aam.metrics.agent;
 
-import com.adobe.aam.metrics.codahale.MetricRegistryReporter;
+import com.adobe.aam.metrics.core.MetricRegistryReporter;
 import com.adobe.aam.metrics.metric.Metric;
 import com.adobe.aam.metrics.metric.bucket.MetricBucket;
 import org.immutables.value.Value;

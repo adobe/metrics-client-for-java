@@ -11,10 +11,10 @@
  *
  */
 
-package com.adobe.aam.metrics.core.agent;
+package com.adobe.aam.metrics.agent;
 
 import com.adobe.aam.metrics.BufferedMetricClient;
-import com.adobe.aam.metrics.codahale.MetricRegistryReporter;
+import com.adobe.aam.metrics.core.MetricRegistryReporter;
 import com.adobe.aam.metrics.metric.Metric;
 import com.adobe.aam.metrics.metric.SimpleMetric;
 import com.adobe.aam.metrics.metric.bucket.MetricBucket;
@@ -40,7 +40,7 @@ public class MetricAgent extends AbstractScheduledService {
 	private final BufferedMetricClient metricClient;
 	private final Collection<Metric> metrics;
 	private final Collection<MetricBucket> metricBuckets;
-	private final Collection<MetricRegistryReporter> metricRegistryReporters;
+	private final Collection<MetricRegistryReporter> codahaleMetricRegistryReporters;
 	private final Duration collectFrequency;
 	private final boolean sendOnlyRecentlyUpdated;
 	private final Map<Metric, ValueProvider> metricValueProviders;
@@ -51,7 +51,7 @@ public class MetricAgent extends AbstractScheduledService {
 		this.sendOnlyRecentlyUpdated = config.sendOnlyRecentlyUpdatedMetrics();
 		this.metrics = config.getMetrics();
 		this.metricBuckets = config.getMetricBuckets();
-		this.metricRegistryReporters = config.getMetricRegistries();
+		this.codahaleMetricRegistryReporters = config.getMetricRegistries();
 		this.metricValueProviders = config.getMetricValueProviders();
 	}
 
@@ -134,6 +134,6 @@ public class MetricAgent extends AbstractScheduledService {
 
 	private void reportMetricRegistries() {
 
-		metricRegistryReporters.forEach(metricRegistryReporter -> metricRegistryReporter.reportTo(metricClient));
+		codahaleMetricRegistryReporters.forEach(metricRegistryReporter -> metricRegistryReporter.reportTo(metricClient));
 	}
 }

@@ -14,9 +14,9 @@
 package com.adobe.aam.metrics.sample.di;
 
 import com.adobe.aam.metrics.BufferedMetricClient;
-import com.adobe.aam.metrics.core.agent.ImmutableMetricAgentConfig;
-import com.adobe.aam.metrics.core.agent.MetricAgentConfig;
-import com.adobe.aam.metrics.codahale.MetricRegistryReporter;
+import com.adobe.aam.metrics.agent.ImmutableMetricAgentConfig;
+import com.adobe.aam.metrics.agent.MetricAgentConfig;
+import com.adobe.aam.metrics.codahale.CodahaleMetricRegistryReporter;
 import com.adobe.aam.metrics.core.client.MetricClientFactory;
 import com.adobe.aam.metrics.sample.SampleWebServiceMetrics;
 import com.adobe.aam.metrics.sample.http.HttpDispatcher;
@@ -46,7 +46,7 @@ class MetricAgentConfigModule extends AbstractModule {
                 .sendOnlyRecentlyUpdatedMetrics(config.getBoolean("monitor.sendOnlyRecentlyUpdatedMetrics"))
                 .collectFrequency(config.getDuration("monitor.collectFrequency"))
                 .addMetricBuckets(SampleWebServiceMetrics.values())
-                .addMetricRegistries(new MetricRegistryReporter(SampleWebServiceMetrics.registry))
+                .addMetricRegistries(new CodahaleMetricRegistryReporter(SampleWebServiceMetrics.registry))
                 .putMetricValueProviders(SampleWebServiceMetrics.REJECTED_REQUESTS.getParentMetric(),
                         () -> Optional.of((double) httpDispatcher.getRejectedRequestsCount())
                 )

@@ -13,19 +13,16 @@
 
 package com.adobe.aam.metrics
 
-import com.adobe.aam.metrics.codahale.ImmutableMetricReporterConfig
-import com.adobe.aam.metrics.codahale.MetricRegistryReporter
-import com.adobe.aam.metrics.core.agent.MetricAgent
-import com.adobe.aam.metrics.core.agent.MetricAgentConfig
-import com.adobe.aam.metrics.core.agent.ValueProvider
+import com.adobe.aam.metrics.agent.MetricAgent
+import com.adobe.aam.metrics.agent.MetricAgentConfig
+import com.adobe.aam.metrics.agent.ValueProvider
+import com.adobe.aam.metrics.core.MetricRegistryReporter
 import com.adobe.aam.metrics.core.client.DefaultMetricClient
 import com.adobe.aam.metrics.core.client.MetricClientFactory
 import com.adobe.aam.metrics.core.di.MonitorModule
 import com.adobe.aam.metrics.metric.ImmutableTags
 import com.adobe.aam.metrics.metric.Metric
 import com.adobe.aam.metrics.metric.bucket.MetricBucket
-import com.codahale.metrics.Histogram
-import com.codahale.metrics.MetricRegistry
 import com.google.inject.AbstractModule
 import com.google.inject.Guice
 import com.google.inject.Injector
@@ -116,10 +113,11 @@ class MonitorModuleTest extends Specification {
 
                 @Override
                 Set<MetricRegistryReporter> getMetricRegistries() {
-                    def config = ImmutableMetricReporterConfig.builder()
-                            .build()
+                    return [new MetricRegistryReporter() {
+                        void reportTo(MetricClient metricClient) {
 
-                    return [new MetricRegistryReporter(MockMetrics.registry, config)]
+                        }
+                    }] as Set
                 }
 
                 @Override
@@ -144,9 +142,6 @@ class MonitorModuleTest extends Specification {
             METRIC1,
             METRIC2,
             METRIC3
-
-            static MetricRegistry registry = new MetricRegistry()
-            static Histogram histogram = registry.histogram("histogram")
 
             @Override
             Collection<Metric> getMetrics() {

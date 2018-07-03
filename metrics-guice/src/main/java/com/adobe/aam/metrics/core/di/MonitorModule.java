@@ -14,8 +14,8 @@
 package com.adobe.aam.metrics.core.di;
 
 import com.adobe.aam.metrics.BufferedMetricClient;
-import com.adobe.aam.metrics.core.agent.MetricAgent;
-import com.adobe.aam.metrics.core.agent.MetricAgentConfig;
+import com.adobe.aam.metrics.agent.MetricAgent;
+import com.adobe.aam.metrics.agent.MetricAgentConfig;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;

@@ -11,9 +11,11 @@
  *
  */
 
-package com.adobe.aam.metrics.core.agent;
+package com.adobe.aam.metrics.agent;
 
 import com.adobe.aam.metrics.BufferedMetricClient;
+import com.adobe.aam.metrics.agent.MetricAgent;
+import com.adobe.aam.metrics.agent.MetricAgentConfig;
 import com.adobe.aam.metrics.metric.Metric;
 import com.adobe.aam.metrics.metric.Tags;
 import com.adobe.aam.metrics.metric.bucket.MetricBucketImpl;

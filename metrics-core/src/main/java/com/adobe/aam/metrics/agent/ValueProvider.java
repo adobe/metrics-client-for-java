@@ -11,7 +11,7 @@
  *
  */
 
-package com.adobe.aam.metrics.core.agent;
+package com.adobe.aam.metrics.agent;
 
 
 import java.util.Optional;

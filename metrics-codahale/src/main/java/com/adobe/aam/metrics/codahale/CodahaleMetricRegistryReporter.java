@@ -14,6 +14,7 @@
 package com.adobe.aam.metrics.codahale;
 
 import com.adobe.aam.metrics.MetricClient;
+import com.adobe.aam.metrics.core.MetricRegistryReporter;
 import com.adobe.aam.metrics.metric.Metric;
 import com.adobe.aam.metrics.metric.SimpleMetric;
 import com.codahale.metrics.*;
@@ -30,9 +31,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * A Codahale opinionated wrapper for 'MetricClient' making use of metric registries
  */
-public class MetricRegistryReporter {
+public class CodahaleMetricRegistryReporter implements MetricRegistryReporter {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MetricRegistryReporter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CodahaleMetricRegistryReporter.class);
     private static final MetricReporterConfig EMPTY_CONFIG = ImmutableMetricReporterConfig.builder().build();
 
     @Value.Immutable
@@ -53,16 +54,16 @@ public class MetricRegistryReporter {
     private final MetricRegistry metricRegistry;
     private final MetricReporterConfig config;
 
-    public MetricRegistryReporter(MetricRegistry metricRegistry, MetricReporterConfig config) {
+    public CodahaleMetricRegistryReporter(MetricRegistry metricRegistry, MetricReporterConfig config) {
         this.metricRegistry = metricRegistry;
         this.config = config;
     }
 
-    public MetricRegistryReporter(MetricRegistry metricRegistry) {
+    public CodahaleMetricRegistryReporter(MetricRegistry metricRegistry) {
         this(metricRegistry, EMPTY_CONFIG);
     }
 
-    public MetricRegistryReporter(MetricRegistry metricRegistry, String prefix) {
+    public CodahaleMetricRegistryReporter(MetricRegistry metricRegistry, String prefix) {
         this(metricRegistry,
                 ImmutableMetricReporterConfig.builder().prefix(prefix).build()
         );
