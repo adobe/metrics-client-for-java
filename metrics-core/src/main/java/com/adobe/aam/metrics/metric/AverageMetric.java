@@ -13,13 +13,15 @@
 
 package com.adobe.aam.metrics.metric;
 
+import java.util.List;
+
 public class AverageMetric extends Metric {
 	private final Object mutex = new Object();
 	private double total;
 	private long count;
 
-	public AverageMetric(String name) {
-		super(name);
+	public AverageMetric(MetricLabels labels) {
+		super(labels);
 	}
 
 	@Override
@@ -36,7 +38,7 @@ public class AverageMetric extends Metric {
 	}
 
 	@Override
-	public double getAndReset() {
+	public double doGetAndReset() {
 		synchronized (mutex) {
 			double result = get();
 			total = count = 0;

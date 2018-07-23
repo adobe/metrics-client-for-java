@@ -13,74 +13,110 @@
 
 package com.adobe.aam.metrics.metric.bucket;
 
+import com.adobe.aam.metrics.metric.ImmutableMetricLabels;
 import com.adobe.aam.metrics.metric.Metric;
+import com.adobe.aam.metrics.metric.MetricLabels;
 import com.google.common.collect.Maps;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 public class MetricBucketImpl implements MetricBucket {
 
-	private final ConcurrentMap<String, Metric> bucket = Maps.newConcurrentMap();
-	private final Metric.Type type;
-	private final String name;
+    private final ConcurrentMap<MetricLabels, Metric> bucket = Maps.newConcurrentMap();
+    private final Metric.Type type;
+    private final MetricLabels parentLabels;
 
-	public MetricBucketImpl(String name, Metric.Type type) {
-		this.name = name;
-		this.type = type;
-	}
+    public MetricBucketImpl(String name, Metric.Type type) {
+        this.parentLabels = ImmutableMetricLabels
+                .builder()
+                .metricName(name)
+                .build();
+        this.type = type;
+    }
 
-	private Metric safeGetMetric(String identifier) {
-		Metric metric = bucket.get(identifier);
-		if (metric == null) {
-			// Metric was not yet created for this identifier.
-			Metric newMetric = Metric.newInstance(identifier, type);
-			metric = bucket.putIfAbsent(identifier, newMetric);
-			if (metric == null) {
-				// If this is the lucky thread that managed to put the metric, then return it as is.
-				metric = newMetric;
-			}
-		}
+    public MetricBucketImpl(String name, Metric.Type type, String preLabelName, List<String> postLabelNames) {
+        this.parentLabels = ImmutableMetricLabels
+                .builder()
+                .metricName(name)
+                .preLabelName(preLabelName)
+                .addAllPostLabelNames(postLabelNames)
+                .build();
+        this.type = type;
+    }
 
-		return metric;
-	}
+    public MetricBucketImpl(String name, Metric.Type type, List<String> postLabelNames) {
+        this.parentLabels = ImmutableMetricLabels
+                .builder()
+                .metricName(name)
+                .addAllPostLabelNames(postLabelNames)
+                .build();
+        this.type = type;
+    }
 
-	@Override
-	public Collection<Metric> getMetrics() {
-		return bucket.values();
-	}
+    public MetricBucketImpl(String name, Metric.Type type, String postLabelName) {
+        this.parentLabels = ImmutableMetricLabels
+                .builder()
+                .metricName(name)
+                .addPostLabelNames(postLabelName)
+                .build();
+        this.type = type;
+    }
 
-	@Override
-	public Metric getMetric(Object suffix) {
-		return safeGetMetric(prettyName(name, suffix));
-	}
+    private Metric safeGetMetric(MetricLabels labels) {
+        MetricLabels normalizedLabels = labels.normalize();
+        Metric metric = bucket.get(normalizedLabels);
+        if (metric == null) {
+            // Metric was not yet created for this identifier.
+            Metric newMetric = Metric.newInstance(normalizedLabels, type);
+            metric = bucket.putIfAbsent(normalizedLabels, newMetric);
+            if (metric == null) {
+                // If this is the lucky thread that managed to put the metric, then return it as is.
+                metric = newMetric;
+            }
+        }
 
-	public Metric getMetricWithPrefix(Object prefix) {
-		return safeGetMetric(prettyName(prefix, name));
-	}
+        return metric;
+    }
 
-	public Metric getMetric(Object prefix, Object... suffixes) {
-		return safeGetMetric(prettyName(prefix, name, suffixes));
-	}
+    @Override
+    public Collection<Metric> getMetrics() {
+        return bucket.values();
+    }
 
-	@Override
-	public Metric getParentMetric() {
-		return safeGetMetric(name);
-	}
+    @Override
+    public Metric getMetric(Object suffix) {
+        MetricLabels childLabels = ImmutableMetricLabels.copyOf(parentLabels)
+                .withPostLabelValues(suffix.toString());
 
-	private String prettyName(Object prefix, Object middle, Object... suffixes) {
-		StringBuilder builder = new StringBuilder();
-		builder
-				.append(prefix)
-				.append('.')
-				.append(middle);
+        return safeGetMetric(childLabels);
+    }
 
-		for (Object suffix : suffixes) {
-			builder
-					.append('.')
-					.append(suffix);
-		}
+    public Metric getMetricWithPrefix(Object prefix) {
+        MetricLabels childLabels = ImmutableMetricLabels.copyOf(parentLabels)
+                .withPreLabelValue(prefix.toString());
 
-		return builder.toString();
-	}
+        return safeGetMetric(childLabels);
+    }
+
+    public Metric getMetric(Object prefix, Object... suffixes) {
+        List<String> postLabelValues = Arrays.stream(suffixes).map(Object::toString)
+                .collect(Collectors.toList());
+        MetricLabels childLabels = ImmutableMetricLabels.copyOf(parentLabels)
+                .withPreLabelValue(prefix.toString())
+                .withPostLabelValues(postLabelValues);
+        return safeGetMetric(childLabels);
+    }
+
+    @Override
+    public Metric getParentMetric() {
+        return safeGetMetric(parentLabels);
+    }
+
+    public MetricLabels labels() {
+        return parentLabels;
+    }
 }

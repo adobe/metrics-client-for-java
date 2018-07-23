@@ -15,11 +15,13 @@ package com.adobe.aam.metrics.metric;
 
 import com.google.common.util.concurrent.AtomicDouble;
 
+import java.util.List;
+
 public class MaxMetric extends Metric {
 	private AtomicDouble max = new AtomicDouble(Metric.NEGATIVE_INFINITY);
 
-	public MaxMetric(String name) {
-		super(name);
+	public MaxMetric(MetricLabels labels) {
+		super(labels);
 	}
 
 	@Override
@@ -35,7 +37,7 @@ public class MaxMetric extends Metric {
 	}
 
 	@Override
-	public double getAndReset() {
+	public double doGetAndReset() {
 		double value = max.getAndSet(Metric.NEGATIVE_INFINITY);
 		return value == NEGATIVE_INFINITY ? 0 : value;
 	}

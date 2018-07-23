@@ -13,41 +13,34 @@
 
 package com.adobe.aam.metrics.graphite;
 
-import com.adobe.aam.metrics.core.MetricSnapshot;
 import com.adobe.aam.metrics.core.config.PublisherConfig;
-import com.adobe.aam.metrics.core.publish.Publisher;
-import com.adobe.aam.metrics.filter.MetricFilter;
+import com.adobe.aam.metrics.core.publish.AbstractPublisher;
+import com.adobe.aam.metrics.metric.Metric;
+import com.adobe.aam.metrics.metric.MetricLabels;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-public class GraphitePublisher implements Publisher {
+public class GraphitePublisher extends AbstractPublisher {
 
     private static final Logger logger = LoggerFactory.getLogger(GraphitePublisher.class);
-    private final PublisherConfig config;
     private final SocketWriterFactory socketFactory;
 
     public GraphitePublisher(PublisherConfig config, SocketWriterFactory socketFactory) {
-        this.config = config;
+        super(config);
         this.socketFactory = socketFactory;
     }
 
     public GraphitePublisher(PublisherConfig config) {
-        this.config = config;
+        super(config);
         this.socketFactory = new SocketWriterFactory();
-    }
-
-    @Override
-    public int getBatchSize() {
-        return config.batchSize();
-    }
-
-    @Override
-    public List<MetricFilter> getMetricFilters() {
-        return config.metricFilters();
     }
 
     @Override
@@ -56,46 +49,44 @@ public class GraphitePublisher implements Publisher {
     }
 
     @Override
-    public void publishMetrics(final List<MetricSnapshot> metrics) throws IOException {
+    public void doPublishMetrics(final Collection<Metric> metrics) throws IOException {
 
         try {
             send(metrics);
         } catch (IOException e) {
-            logger.error("Error sending metrics to '{}'. {}", config.name(), e.getMessage());
+            logger.error("Error sending metrics to '{}'. {}", config().name(), e.getMessage());
             throw e;
         }
     }
 
-    private void send(List<MetricSnapshot> metrics) throws IOException {
-        logger.info("Sending {} metrics to '{}': {}", metrics.size(), config.name(), config.host());
+    private void send(Collection<Metric> metrics) throws IOException {
+        logger.info("Sending {} metrics to '{}': {}", metrics.size(), config().name(), config().host());
 
         SocketWriter writer = socketFactory.create();
-        writer.open(config.host(), config.port().orElse(2003), config.socketTimeout());
+        writer.open(config().host(), config().port().orElse(2003), config().socketTimeout());
 
-        for (MetricSnapshot metric : metrics) {
+        metrics.forEach(metric -> {
             writer.write(format(metric));
-            logger.info("Metric sent from '{}': {}", config.name(), metric);
-        }
-
+            logger.info("Metric sent from '{}': {}", config().name(), metric);
+        });
         writer.close();
     }
 
-    private String format(MetricSnapshot metric) {
+    private String format(Metric metric) {
         // Generate full metric name (eg. prod.myapp.cluster1.us-east-1.requests.attempted.count)
         StringBuilder fullMetric = new StringBuilder();
         fullMetric
-                .append(metric.tags().asMetricName())
+                .append(config().tags().asMetricName())
                 .append(".")
-                .append(metric.name());
+                .append(metric.getLabels().format('.'));
 
-        String metricName = metric.type().getName();
-        double metricValue = metric.value();
-        if (StringUtils.isNotBlank(metricName)) {
+        String metricType = metric.getType().getName();
+        if (StringUtils.isNotBlank(metricType)) {
             fullMetric
                     .append(".")
-                    .append(metricName);
+                    .append(metricType);
         }
 
-        return String.format("%s %2.2f %d", fullMetric, metricValue, metric.timestamp());
+        return String.format("%s %2.2f %d", fullMetric, super.getMetricValue(metric), System.currentTimeMillis());
     }
 }

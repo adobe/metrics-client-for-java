@@ -13,18 +13,23 @@
 
 package com.adobe.aam.metrics.opentsdb
 
-import com.adobe.aam.metrics.core.ImmutableMetricSnapshot
+import com.adobe.aam.metrics.core.config.ImmutablePublisherConfig
 import com.adobe.aam.metrics.core.config.PublisherConfig
 import com.adobe.aam.metrics.metric.ImmutableTags
 import com.adobe.aam.metrics.metric.Metric
+import com.adobe.aam.metrics.metric.SimpleMetric
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okio.Buffer
+import spock.lang.Shared
 import spock.lang.Specification
 import spock.util.concurrent.BlockingVariable
 
 class OpenTsdbPublisherTest extends Specification {
+
+    @Shared
+            tags = ImmutableTags.builder().environment("prod").appName("myapp").build()
 
     def "test send metric using OpenTSDB publisher"() {
 
@@ -41,28 +46,29 @@ class OpenTsdbPublisherTest extends Specification {
             }
         }
 
-        def config = Mock(PublisherConfig) {
-            host() >> "https://myhost"
-            port() >> Optional.empty()
-        }
+        def publishFrequencyMs = 60000
+        PublisherConfig config = ImmutablePublisherConfig.builder()
+                .type("OpenTSDB")
+                .name("OpenTSDB publisher")
+                .host("https://myhost")
+                .publishFrequencyMs(publishFrequencyMs)
+                .sendOnlyRecentlyUpdatedMetrics(true)
+                .tags(tags)
+                .build();
 
         def openTsdbPublisher = new OpenTsdbPublisher(config, httpClient)
 
-        def metric = ImmutableMetricSnapshot.builder()
-                .name("request")
-                .type(Metric.Type.COUNT)
-                .timestamp(123)
-                .value(100)
-                .tags(ImmutableTags.builder().environment("prod").appName("myapp").build())
-                .build()
-
+        def metric = new SimpleMetric("request", Metric.Type.COUNT, 100, System.currentTimeMillis() - publishFrequencyMs + 1000)
+        def staleMetric = new SimpleMetric("request.other", Metric.Type.COUNT, 120, System.currentTimeMillis() - 2 * publishFrequencyMs)
 
         when:
-        openTsdbPublisher.publishMetrics([metric])
+        openTsdbPublisher.publishMetrics([metric, staleMetric])
 
         then:
         httpEndpoint.get() == "https://myhost/"
-        httpBody.get() == '[{"metric":"request.count","value":100.0,"timestamp":123,"tags":{"appName":"myapp","env":"prod"}}]'
+        def body = httpBody.get()
+        body.startsWith('[{"metric":"request.count","value":100.0,"timestamp":')
+        body.endsWith('"tags":{"appName":"myapp","env":"prod"}}]')
     }
 
     String getBody(Request request) {

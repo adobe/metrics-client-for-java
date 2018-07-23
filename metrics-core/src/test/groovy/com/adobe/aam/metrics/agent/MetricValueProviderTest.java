@@ -14,8 +14,7 @@
 package com.adobe.aam.metrics.agent;
 
 import com.adobe.aam.metrics.BufferedMetricClient;
-import com.adobe.aam.metrics.agent.MetricAgent;
-import com.adobe.aam.metrics.agent.MetricAgentConfig;
+import com.adobe.aam.metrics.metric.ImmutableTags;
 import com.adobe.aam.metrics.metric.Metric;
 import com.adobe.aam.metrics.metric.Tags;
 import com.adobe.aam.metrics.metric.bucket.MetricBucketImpl;
@@ -24,6 +23,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -31,6 +31,7 @@ public class MetricValueProviderTest {
 
     private static final double DELTA = 0;
     private MockedMetricClient mockedMetricClient;
+    private Tags tags = ImmutableTags.builder().appName("myapp").regionName("us-east-1").build();
 
     @Before
     public void setUp() {
@@ -47,7 +48,7 @@ public class MetricValueProviderTest {
         Assert.assertEquals("Initial value is not the one expected.", 0, metric.get(), DELTA);
         MetricAgentConfig config = ImmutableMetricAgentConfig.builder()
                 .putMetricValueProviders(metric, () -> Optional.of(123.00))
-                .sendOnlyRecentlyUpdatedMetrics(false)
+                .tags(tags)
                 .build();
         MetricAgent metricAgent = new MetricAgent(mockedMetricClient, config);
 
@@ -58,7 +59,7 @@ public class MetricValueProviderTest {
     }
 
     @Test
-    public void testMetricValueProviderNoUpdates() throws Exception {
+    public void testMetricValueProviderNoUpdates() {
         // Given a metric and a value provider
         // When the provider does not provide any value
         // Then the metric agent should not send the metric to the backend
@@ -68,7 +69,7 @@ public class MetricValueProviderTest {
 
         MetricAgentConfig config = ImmutableMetricAgentConfig.builder()
                 .putMetricValueProviders(metric, Optional::empty)
-                .sendOnlyRecentlyUpdatedMetrics(false)
+                .tags(tags)
                 .build();
         MetricAgent metricAgent = new MetricAgent(mockedMetricClient, config);
 
@@ -94,9 +95,8 @@ public class MetricValueProviderTest {
         MetricAgentConfig config = ImmutableMetricAgentConfig.builder()
                 .addMetrics(metric) // #1
                 .addMetricBuckets(bucket) // #2
-                .sendOnlyRecentlyUpdatedMetrics(false)
+                .tags(tags)
                 .collectFrequency(Duration.ofMillis(frequency))
-                .sendOnlyRecentlyUpdatedMetrics(false)
                 .build();
         MetricAgent metricAgent = new MetricAgent(mockedMetricClient, config);
 
@@ -115,53 +115,33 @@ public class MetricValueProviderTest {
         public String metricName;
         public String metricType;
         public double metricValue;
-        public long timestamp;
 
         public final AtomicInteger metricsSent = new AtomicInteger();
 
         @Override
-        public Tags getTags() {
-            return null;
-        }
+        public void shutdown() {
 
-        public void sendAndReset(Metric metric) {
-            this.sendAndReset(metric, System.currentTimeMillis());
         }
 
         @Override
-        public void sendAndReset(Metric metric, long timestamp) {
-            this.send(
-                    metric.getName(),
-                    metric.getType().getName(),
-                    metric.getAndReset(),
-                    timestamp);
+        public void send(Metric metric) {
+
         }
 
         @Override
-        public void send(Metric metric, long timestamp) {
-            this.send(
-                    metric.getName(),
-                    metric.getType().getName(),
-                    metric.get(),
-                    timestamp);
-        }
+        public void send(Collection<Metric> metrics) {
+            if (metrics.size() > 0) {
+                Metric metric = metrics.iterator().next();
+                this.metricName = metric.getName();
+                this.metricType = metric.getType().getName();
+                this.metricValue = metric.get();
 
-        public void send(String metricName, String metricType, double metricValue, long timestamp) {
-            this.metricName = metricName;
-            this.metricType = metricType;
-            this.metricValue = metricValue;
-            this.timestamp = timestamp;
-
-            metricsSent.incrementAndGet();
+                metricsSent.incrementAndGet();
+            }
         }
 
         @Override
         public void flush() {
-
-        }
-
-        @Override
-        public void shutdown() {
 
         }
     }

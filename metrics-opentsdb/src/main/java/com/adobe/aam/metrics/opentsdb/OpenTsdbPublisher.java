@@ -12,48 +12,42 @@
  */
 package com.adobe.aam.metrics.opentsdb;
 
-import com.adobe.aam.metrics.core.MetricSnapshot;
 import com.adobe.aam.metrics.core.config.PublisherConfig;
-import com.adobe.aam.metrics.core.publish.Publisher;
-import com.adobe.aam.metrics.filter.MetricFilter;
+import com.adobe.aam.metrics.core.publish.AbstractPublisher;
+import com.adobe.aam.metrics.metric.Metric;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-public final class OpenTsdbPublisher implements Publisher {
+public final class OpenTsdbPublisher extends AbstractPublisher {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenTsdbPublisher.class);
 
     private final String name;
-    private final int batchSize;
-    private final List<MetricFilter> metricFilters;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final OkHttpClient client;
     private final String endpoint;
 
     public OpenTsdbPublisher(PublisherConfig config) {
-        this.name = config.name();
-        this.endpoint = getEndpoint(config);
-        this.batchSize = config.batchSize();
-        this.metricFilters = config.metricFilters();
-        this.client = new OkHttpClient().newBuilder()
+        this(config, new OkHttpClient().newBuilder()
                 .connectTimeout(config.socketTimeout(), TimeUnit.MILLISECONDS)
                 .readTimeout(config.socketTimeout(), TimeUnit.MILLISECONDS)
                 .writeTimeout(config.socketTimeout(), TimeUnit.MILLISECONDS)
-                .build();
+                .build()
+        );
     }
 
     public OpenTsdbPublisher(PublisherConfig config, OkHttpClient client) {
+        super(config);
         this.name = config.name();
         this.endpoint = getEndpoint(config);
-        this.batchSize = config.batchSize();
-        this.metricFilters = config.metricFilters();
         this.client = client;
     }
 
@@ -65,16 +59,6 @@ public final class OpenTsdbPublisher implements Publisher {
         }
 
         return host;
-    }
-
-    @Override
-    public int getBatchSize() {
-        return batchSize;
-    }
-
-    @Override
-    public List<MetricFilter> getMetricFilters() {
-        return metricFilters;
     }
 
     @Override
@@ -91,10 +75,10 @@ public final class OpenTsdbPublisher implements Publisher {
     }
 
     @Override
-    public void publishMetrics(final List<MetricSnapshot> metrics) throws IOException {
+    public void doPublishMetrics(final Collection<Metric> metrics) throws IOException {
         logger.info("Sending {} metrics to '{}': {}.", metrics.size(), name, endpoint);
         try {
-            String json = objectMapper.writeValueAsString(convert(metrics));
+            String json = objectMapper.writeValueAsString(toOpenTsdbMetrics(metrics));
             Response response = sendPost(endpoint, json);
             logger.info("Response from '{}' was {}", name, response);
         } catch (IOException e) {
@@ -103,7 +87,7 @@ public final class OpenTsdbPublisher implements Publisher {
         }
     }
 
-    public Response sendPost(String endpoint, String json) throws IOException {
+    private Response sendPost(String endpoint, String json) throws IOException {
 
         RequestBody body = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), json);
         Request request = new Request.Builder()
@@ -116,9 +100,13 @@ public final class OpenTsdbPublisher implements Publisher {
         }
     }
 
-    private List<OpenTsdbMetric> convert(List<MetricSnapshot> metricSnapshots) {
-        return metricSnapshots.stream()
-                .map(OpenTsdbMetric::from)
-                .collect(Collectors.toList());
+    private Set<OpenTsdbMetric> toOpenTsdbMetrics(Collection<Metric> metrics) {
+        return metrics.stream()
+                .map(this::toOpenTsdbMetric)
+                .collect(Collectors.toSet());
+    }
+
+    private OpenTsdbMetric toOpenTsdbMetric(Metric metric) {
+        return OpenTsdbMetric.from(metric, super.getMetricValue(metric), config().tags());
     }
 }

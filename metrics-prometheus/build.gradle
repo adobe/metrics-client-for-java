@@ -1,0 +1,5 @@
+dependencies {
+    compile project(':metrics-core')
+
+    compile group: 'io.prometheus', name: 'simpleclient', version: '0.4.0'
+}

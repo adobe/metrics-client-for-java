@@ -13,10 +13,8 @@
 
 package com.adobe.aam.metrics.filter;
 
-import com.adobe.aam.metrics.core.ImmutableMetricSnapshot;
-import com.adobe.aam.metrics.core.MetricSnapshot;
-import com.adobe.aam.metrics.metric.ImmutableTags;
 import com.adobe.aam.metrics.metric.Metric;
+import com.adobe.aam.metrics.metric.SimpleMetric;
 import com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
@@ -36,12 +34,12 @@ public class WhitelistMetricFilterTest {
 	@Test
 	public void testWhitelistWithValidItems() {
 		List<String> whitelist = Lists.newArrayList();
-		whitelist.add("good");
-		whitelist.add("better");
+		whitelist.add("good.metric");
+		whitelist.add("better.metric");
 		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
-		Assert.assertTrue(filter.isAllowed(metric("metric.good.name")));
-		Assert.assertTrue(filter.isAllowed(metric("metric.better.name")));
-		Assert.assertFalse(filter.isAllowed(metric("metric.bad.name")));
+		Assert.assertTrue(filter.isAllowed(metric("good.metric")));
+		Assert.assertTrue(filter.isAllowed(metric("better.metric")));
+		Assert.assertFalse(filter.isAllowed(metric("bad.metric")));
 	}
 
 	@Test
@@ -49,10 +47,10 @@ public class WhitelistMetricFilterTest {
 		List<String> whitelist = Lists.newArrayList();
 		whitelist.add("GooD");
 		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
-		Assert.assertTrue(filter.isAllowed(metric("metric.good.name")));
-		Assert.assertTrue(filter.isAllowed(metric("metric.gOOd.name")));
-		Assert.assertTrue(filter.isAllowed(metric("metric.gOOD.name")));
-		Assert.assertFalse(filter.isAllowed(metric("metric.bad.name")));
+		Assert.assertTrue(filter.isAllowed(metric("good")));
+		Assert.assertTrue(filter.isAllowed(metric("gOOd")));
+		Assert.assertTrue(filter.isAllowed(metric("gOOD")));
+		Assert.assertFalse(filter.isAllowed(metric("bad")));
 	}
 
 	@Test
@@ -66,30 +64,35 @@ public class WhitelistMetricFilterTest {
 	@Test
 	public void testBlankItem() {
 		List<String> whitelist = Lists.newArrayList();
-		whitelist.add("good");
+		whitelist.add("metric.name");
 		whitelist.add("");
 		whitelist.add("  ");
 		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
-		Assert.assertTrue(filter.isAllowed(metric("metric.good.name")));
-		Assert.assertFalse(filter.isAllowed(metric("metric.name")));
+		Assert.assertTrue(filter.isAllowed(metric("metric.name")));
 	}
 
 	@Test
-	public void testItemWithWhitespaces() {
+	public void testItemWithEndingRegex() {
 		List<String> whitelist = Lists.newArrayList();
-		whitelist.add("good \t");
+		whitelist.add("pcs.*");
 		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
-		Assert.assertFalse(filter.isAllowed(metric("metric.name")));
-		Assert.assertTrue(filter.isAllowed(metric("metric.good.name")));
+		Assert.assertTrue(filter.isAllowed(metric("pcs.metric1")));
+		Assert.assertFalse(filter.isAllowed(metric("other.metric")));
+		Assert.assertFalse(filter.isAllowed(metric("other.metric.pcs")));
 	}
 
-	private MetricSnapshot metric(String name) {
-		return ImmutableMetricSnapshot.builder()
-				.name(name)
-				.type(Metric.Type.COUNT)
-				.timestamp(1000)
-				.value(10)
-				.tags(ImmutableTags.builder().build())
-				.build();
+	@Test
+	public void testItemWithStartAndEndRegex() {
+		List<String> whitelist = Lists.newArrayList();
+		whitelist.add("*pcs*");
+		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
+		Assert.assertTrue(filter.isAllowed(metric("some.pcs.metric")));
+		Assert.assertTrue(filter.isAllowed(metric("pcs.metric")));
+		Assert.assertTrue(filter.isAllowed(metric("metric.pcs")));
+		Assert.assertFalse(filter.isAllowed(metric("other.metric")));
+	}
+
+	private Metric metric(String name) {
+		return new SimpleMetric(name, Metric.Type.COUNT, 0);
 	}
 }

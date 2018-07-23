@@ -13,20 +13,21 @@
 
 package com.adobe.aam.metrics.codahale;
 
-import com.adobe.aam.metrics.MetricClient;
 import com.adobe.aam.metrics.core.MetricRegistryReporter;
 import com.adobe.aam.metrics.metric.Metric;
 import com.adobe.aam.metrics.metric.SimpleMetric;
 import com.codahale.metrics.*;
-import com.google.common.collect.Maps;
 import org.apache.commons.lang3.StringUtils;
 import org.immutables.value.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * A Codahale opinionated wrapper for 'MetricClient' making use of metric registries
@@ -72,68 +73,102 @@ public class CodahaleMetricRegistryReporter implements MetricRegistryReporter {
     /**
      * Report configured metric registries to the provided metric client
      */
-    public synchronized void reportTo(MetricClient metricClient) {
+    public Collection<Metric> getMetrics() {
 
-        long timestamp = System.currentTimeMillis() / 1000;
-
-        metricRegistry.getCounters(config.metricFilter())
-                .forEach((name, counter) -> reportCounter(metricClient, name, counter, timestamp));
-
-        metricRegistry.getHistograms(config.metricFilter())
-                .forEach((name, histogram) -> reportHistogram(metricClient, name, histogram, timestamp));
-
-        metricRegistry.getMeters(config.metricFilter())
-                .forEach((name, meter) -> reportMetered(metricClient, name, meter, timestamp));
-
-        metricRegistry.getTimers(config.metricFilter())
-                .forEach((name, timer) -> reportTimer(metricClient, name, timer, timestamp));
-
-        metricRegistry.getGauges(config.metricFilter())
-                .forEach((name, gauge) -> reportGauge(metricClient, name, gauge, timestamp));
+        return Stream.of(
+                getCounters(),
+                getHistograms(),
+                getTimers(),
+                getMeters(),
+                getGauges()
+        )
+                .flatMap(Function.identity())
+                .collect(Collectors.toSet());
     }
 
-    private void reportHistogram(MetricClient metricClient, String name, Histogram histogram, long timestamp) {
+    private Stream<Metric> getCounters() {
+        return metricRegistry.getCounters(config.metricFilter())
+                .entrySet()
+                .stream()
+                .map(entry -> reportCounter(entry.getKey(), entry.getValue()));
+    }
+
+    private Stream<Metric> getHistograms() {
+        return metricRegistry.getHistograms(config.metricFilter())
+                .entrySet()
+                .stream()
+                .flatMap(entry -> reportHistogram(entry.getKey(), entry.getValue()));
+    }
+
+    private Stream<Metric> getTimers() {
+        return metricRegistry.getTimers(config.metricFilter())
+                .entrySet()
+                .stream()
+                .flatMap(entry -> reportTimer(entry.getKey(), entry.getValue()));
+    }
+
+    private Stream<Metric> getMeters() {
+        return metricRegistry.getMeters(config.metricFilter())
+                .entrySet()
+                .stream()
+                .flatMap(entry -> reportMetered(entry.getKey(), entry.getValue()));
+    }
+
+    private Stream<Metric> getGauges() {
+        return metricRegistry.getGauges(config.metricFilter())
+                .entrySet()
+                .stream()
+                .flatMap(entry -> reportGauge(entry.getKey(), entry.getValue()));
+    }
+
+    private Stream<Metric> reportHistogram(String name, Histogram histogram) {
         final Snapshot snapshot = histogram.getSnapshot();
-        sendMetric(metricClient, name, Metric.Type.COUNT, getNewCounterValue(name, histogram.getCount()), timestamp);
-        sendMetric(metricClient, name, Metric.Type.MAX, snapshot.getMax(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.AVG, snapshot.getMean(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.MIN, snapshot.getMin(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.STANDARD_DEVIATION, snapshot.getStdDev(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_50, snapshot.getMedian(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_75, snapshot.get75thPercentile(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_95, snapshot.get95thPercentile(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_98, snapshot.get98thPercentile(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_99, snapshot.get99thPercentile(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_999, snapshot.get999thPercentile(), timestamp);
+
+        return Stream.of(
+                generateMetric(name, Metric.Type.COUNT, histogram.getCount()),
+                generateMetric(name, Metric.Type.MAX, snapshot.getMax()),
+                generateMetric(name, Metric.Type.AVG, snapshot.getMean()),
+                generateMetric(name, Metric.Type.MIN, snapshot.getMin()),
+                generateMetric(name, Metric.Type.STANDARD_DEVIATION, snapshot.getStdDev()),
+                generateMetric(name, Metric.Type.PERCENTILE_50, snapshot.getMedian()),
+                generateMetric(name, Metric.Type.PERCENTILE_75, snapshot.get75thPercentile()),
+                generateMetric(name, Metric.Type.PERCENTILE_95, snapshot.get95thPercentile()),
+                generateMetric(name, Metric.Type.PERCENTILE_98, snapshot.get98thPercentile()),
+                generateMetric(name, Metric.Type.PERCENTILE_99, snapshot.get99thPercentile()),
+                generateMetric(name, Metric.Type.PERCENTILE_999, snapshot.get999thPercentile())
+        );
     }
 
-    private void reportCounter(MetricClient metricClient, String name, Counter counter, long timestamp) {
-        sendMetric(metricClient, name, Metric.Type.COUNT, getNewCounterValue(name, counter.getCount()), timestamp);
+    private Metric reportCounter(String name, Counting counter) {
+        return new CodahaleCounter(formatMetricName(name), counter);
     }
 
-    private void reportTimer(MetricClient metricClient, String name, Timer timer, long timestamp) {
+    private Stream<Metric> reportTimer(String name, Timer timer) {
         final Snapshot snapshot = timer.getSnapshot();
-        sendMetric(metricClient, name, Metric.Type.MAX, convertDuration(snapshot.getMax()), timestamp);
-        sendMetric(metricClient, name, Metric.Type.AVG, convertDuration(snapshot.getMean()), timestamp);
-        sendMetric(metricClient, name, Metric.Type.MIN, convertDuration(snapshot.getMin()), timestamp);
-        sendMetric(metricClient, name, Metric.Type.STANDARD_DEVIATION, convertDuration(snapshot.getStdDev()), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_50, convertDuration(snapshot.getMedian()), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_75, convertDuration(snapshot.get75thPercentile()), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_95, convertDuration(snapshot.get95thPercentile()), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_98, convertDuration(snapshot.get98thPercentile()), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_99, convertDuration(snapshot.get99thPercentile()), timestamp);
-        sendMetric(metricClient, name, Metric.Type.PERCENTILE_999, convertDuration(snapshot.get999thPercentile()), timestamp);
 
-        reportMetered(metricClient, name, timer, timestamp);
+        return Stream.concat(
+                reportMetered(name, timer),
+                Stream.of(
+                        generateMetric(name, Metric.Type.MAX, convertDuration(snapshot.getMax())),
+                        generateMetric(name, Metric.Type.AVG, convertDuration(snapshot.getMean())),
+                        generateMetric(name, Metric.Type.MIN, convertDuration(snapshot.getMin())),
+                        generateMetric(name, Metric.Type.STANDARD_DEVIATION, convertDuration(snapshot.getStdDev())),
+                        generateMetric(name, Metric.Type.PERCENTILE_50, convertDuration(snapshot.getMedian())),
+                        generateMetric(name, Metric.Type.PERCENTILE_75, convertDuration(snapshot.get75thPercentile())),
+                        generateMetric(name, Metric.Type.PERCENTILE_95, convertDuration(snapshot.get95thPercentile())),
+                        generateMetric(name, Metric.Type.PERCENTILE_98, convertDuration(snapshot.get98thPercentile())),
+                        generateMetric(name, Metric.Type.PERCENTILE_99, convertDuration(snapshot.get99thPercentile())),
+                        generateMetric(name, Metric.Type.PERCENTILE_999, convertDuration(snapshot.get999thPercentile()))
+                ));
     }
 
-    private void reportGauge(MetricClient metricClient, String name, Gauge gauge, long timestamp) {
+    private Stream<Metric> reportGauge(String name, Gauge gauge) {
         Optional<Double> value = getDouble(name, gauge.getValue().toString());
         if (value.isPresent() && !StringUtils.isBlank(name)) {
             Metric.Type type = Metric.Type.fromName(name);
-            double metricValue = type == Metric.Type.COUNT ? getNewCounterValue(name, value.get()) : value.get();
-            sendMetric(metricClient, name, type, metricValue, timestamp);
+            return Stream.of(generateMetric(name, type, value.get()));
         }
+        return Stream.empty();
     }
 
     private Optional<Double> getDouble(String name, String value) {
@@ -157,40 +192,25 @@ public class CodahaleMetricRegistryReporter implements MetricRegistryReporter {
         return Optional.empty();
     }
 
-    private void reportMetered(MetricClient metricClient, String name, Metered meter, long timestamp) {
-        sendMetric(metricClient, name, Metric.Type.COUNT, getNewCounterValue(name, meter.getCount()), timestamp);
-        sendMetric(metricClient, name, Metric.Type.MEAN_RATE, meter.getMeanRate(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.RATE_1MIN, meter.getOneMinuteRate(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.RATE_5MIN, meter.getFiveMinuteRate(), timestamp);
-        sendMetric(metricClient, name, Metric.Type.RATE_15MIN, meter.getFifteenMinuteRate(), timestamp);
+    private Stream<Metric> reportMetered(String name, Metered meter) {
+        return Stream.of(
+                reportCounter(name, meter),
+                generateMetric(name, Metric.Type.MEAN_RATE, meter.getMeanRate()),
+                generateMetric(name, Metric.Type.RATE_1MIN, meter.getOneMinuteRate()),
+                generateMetric(name, Metric.Type.RATE_5MIN, meter.getFiveMinuteRate()),
+                generateMetric(name, Metric.Type.RATE_15MIN, meter.getFifteenMinuteRate())
+        );
     }
 
     private double convertDuration(double duration) {
         return duration * config.durationFactor();
     }
 
-    private void sendMetric(MetricClient metricClient, String name, Metric.Type type, double value, long timestamp) {
-        Metric metric = new SimpleMetric(formatMetricName(name), type, value);
-        metricClient.send(metric, timestamp);
+    private Metric generateMetric(String name, Metric.Type type, double value) {
+        return new SimpleMetric(formatMetricName(name), type, value);
     }
 
     private String formatMetricName(String name) {
         return config.prefix().map(s -> s + "." + name).orElse(name);
-    }
-
-    // Workaround for https://github.com/dropwizard/metrics/issues/143
-    // External reset operation is not supported on metrics.
-    private Map<String, Double> counterValues = Maps.newHashMap();
-
-    private double getNewCounterValue(String metric, double latestValue) {
-        // Subtract the last known counter value (if any) from the newest one.
-        if (!counterValues.containsKey(metric)) {
-            counterValues.put(metric, latestValue);
-            return latestValue;
-        }
-
-        double newValue = latestValue - counterValues.get(metric);
-        counterValues.put(metric, latestValue);
-        return newValue;
     }
 }

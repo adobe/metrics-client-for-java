@@ -13,145 +13,123 @@
 
 package com.adobe.aam.metrics.core.client
 
-import com.adobe.aam.metrics.core.MetricSnapshot
+import com.adobe.aam.metrics.core.config.PublisherConfig
 import com.adobe.aam.metrics.core.publish.Publisher
-import com.adobe.aam.metrics.metric.ImmutableTags
 import com.adobe.aam.metrics.metric.Metric
 import com.adobe.aam.metrics.metric.SimpleMetric
 import com.google.common.collect.Queues
-import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Subject
 import spock.util.concurrent.BlockingVariable
 
-class DefaultMetricClientTest extends Specification {
-    @Shared timestamp = System.currentTimeMillis()
-    @Shared tags = ImmutableTags.builder().appName("myapp").regionName("us-east-1").build()
-    @Subject queue = Queues.newLinkedBlockingQueue()
+import static com.adobe.aam.metrics.metric.Metric.Type
 
+class DefaultMetricClientTest extends Specification {
+
+    @Subject queue = Queues.newLinkedBlockingQueue()
     def "test send metric with a single producer"() {
 
         setup:
 
-        def actualMetricsSent = new BlockingVariable<List<MetricSnapshot>>()
+        def actualMetricsSent = new BlockingVariable<Collection<Metric>>()
         def publisher = Mock(Publisher) {
             publishMetrics(*_) >> { metrics ->
                 actualMetricsSent.set(metrics[0])
             }
 
             isWhitelisted(*_) >> true
+
+            config() >> Mock(PublisherConfig)
         }
 
-        def metricClient = new DefaultMetricClient(queue, publisher, tags)
+        def metricClient = new DefaultMetricClient(queue, publisher)
 
         when:
-        metricClient.sendAndReset(new SimpleMetric("max_request_time", Metric.Type.MIN, 100), timestamp)
+        metricClient.send(genMetric("max_request_time", Type.MIN, 100))
         metricClient.flush()
 
         then:
         def metricsSent = actualMetricsSent.get()
         metricsSent.size() == 1
-        metricsSent.get(0).name() == "max_request_time"
-        metricsSent.get(0).type() == Metric.Type.MIN
-        metricsSent.get(0).value() == 100
-        metricsSent.get(0).tags() == tags
-    }
-
-    def "test send metric with multiple producers"() {
-
-        setup:
-
-        def metricsSentCount = new BlockingVariable<Integer>()
-        def publisher = Mock(Publisher) {
-            publishMetrics(*_) >> { metrics ->
-                metricsSentCount.set(metrics[0].size())
-            }
-
-            isWhitelisted(*_) >> true
-        }
-
-        def metricClient = new DefaultMetricClient(queue, publisher, tags)
-
-        Thread thread1 = Thread.start {
-            10.times {
-                metricClient.sendAndReset(Metric.newInstance("latency", Metric.Type.AVG), timestamp);
-            }
-        }
-        Thread thread2 = Thread.start {
-            10.times {
-                metricClient.sendAndReset(Metric.newInstance("latency", Metric.Type.AVG), timestamp);
-            }
-        }
-        thread1.join()
-        thread2.join()
-
-        when:
-        metricClient.flush()
-
-        then:
-        metricsSentCount.get() == 20
+        def metricSent = metricsSent.iterator().next()
+        metricSent.getName() == "max_request_time"
+        metricSent.getType() == Type.MIN
+        metricSent.get() == 100
     }
 
     def "test graphite queue flush on shutdown"() {
 
         setup:
-        def actualMetricsSent = new BlockingVariable<List<MetricSnapshot>>()
+        def actualMetricsSent = new BlockingVariable<Collection<Metric>>()
         def publisher = Mock(Publisher) {
             publishMetrics(*_) >> { metrics ->
                 actualMetricsSent.set(metrics[0])
             }
 
             isWhitelisted(*_) >> true
+
+            config() >> Mock(PublisherConfig)
         }
 
-        def metricClient = new DefaultMetricClient(queue, publisher, tags);
+        def metricClient = new DefaultMetricClient(queue, publisher);
 
         when:
-        metricClient.sendAndReset(new SimpleMetric("latency", Metric.Type.AVG, 50), timestamp);
-        metricClient.sendAndReset(new SimpleMetric("mycounter", Metric.Type.COUNT, 100), timestamp);
+        metricClient.send([genMetric("latency", Type.AVG, 50), genMetric("mycounter", Type.COUNT, 100)])
         metricClient.flush()
 
         then:
         def metricsSent = actualMetricsSent.get()
         metricsSent.size() == 2
-        metricsSent.get(0).name() == "latency"
-        metricsSent.get(0).type() == Metric.Type.AVG
-        metricsSent.get(0).value() == 50
-        metricsSent.get(0).tags() == tags
+        def iterator = metricsSent.iterator().sort(new Comparator<Metric>() {
+            @Override
+            int compare(Metric o1, Metric o2) {
+                return o1.getName().compareTo(o2.getName())
+            }
+        })
 
-        metricsSent.get(1).name() == "mycounter"
-        metricsSent.get(1).type() == Metric.Type.COUNT
-        metricsSent.get(1).value() == 100
-        metricsSent.get(1).tags() == tags
+        def metric1 = iterator.next()
+        metric1.getName() == "latency"
+        metric1.getType() == Type.AVG
+        metric1.get() == 50
+
+        def metric2 = iterator.next()
+        metric2.getName() == "mycounter"
+        metric2.getType() == Type.COUNT
+        metric2.get() == 100
     }
 
     def "test send metric when using a filter setup on the client"() {
 
         setup:
-        def actualMetricsSent = new BlockingVariable<List<MetricSnapshot>>()
+        def actualMetricsSent = new BlockingVariable<Collection<Metric>>()
         def publisher = Mock(Publisher) {
             publishMetrics(*_) >> { metrics ->
                 actualMetricsSent.set(metrics[0])
             }
 
             isWhitelisted(*_) >> {
-                metric -> "only-this-metric".equals(metric[0].name())
+                metric -> "only-this-metric".equals(metric[0].getName())
             }
+
+            config() >> Mock(PublisherConfig)
         }
 
-        def metricClient = new DefaultMetricClient(queue, publisher, tags);
+        def metricClient = new DefaultMetricClient(queue, publisher);
 
         when:
-        metricClient.sendAndReset(new SimpleMetric("max_request_time", Metric.Type.MIN, 100), timestamp);
-        metricClient.sendAndReset(new SimpleMetric("only-this-metric", Metric.Type.AVG, 100), timestamp);
+        metricClient.send([genMetric("max_request_time", Type.MIN, 100), genMetric("only-this-metric", Type.AVG, 100)])
         metricClient.flush()
 
         then:
         def metricsSent = actualMetricsSent.get()
         metricsSent.size() == 1
-        metricsSent.get(0).name() == "only-this-metric"
-        metricsSent.get(0).type() == Metric.Type.AVG
-        metricsSent.get(0).value() == 100
-        metricsSent.get(0).tags() == tags
+        def metric = metricsSent.iterator().next()
+        metric.getName() == "only-this-metric"
+        metric.getType() == Type.AVG
+        metric.get() == 100
+    }
+
+    def Metric genMetric(name, type, value) {
+        return new SimpleMetric(name, type, value)
     }
 }

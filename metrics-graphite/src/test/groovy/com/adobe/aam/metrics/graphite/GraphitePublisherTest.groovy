@@ -13,14 +13,21 @@
 
 package com.adobe.aam.metrics.graphite
 
-import com.adobe.aam.metrics.core.ImmutableMetricSnapshot
+import com.adobe.aam.metrics.core.config.ImmutablePublisherConfig
 import com.adobe.aam.metrics.core.config.PublisherConfig
 import com.adobe.aam.metrics.metric.ImmutableTags
 import com.adobe.aam.metrics.metric.Metric
+import com.adobe.aam.metrics.metric.SimpleMetric
+import com.adobe.aam.metrics.metric.bucket.MetricBucketImpl
+import org.testng.collections.Lists
+import spock.lang.Shared
 import spock.lang.Specification
 import spock.util.concurrent.BlockingVariable
 
 class GraphitePublisherTest extends Specification {
+
+    @Shared
+            tags = ImmutableTags.builder().environment("prod").appName("myapp").build()
 
     def "test send metric using the Graphite publisher"() {
 
@@ -29,7 +36,9 @@ class GraphitePublisherTest extends Specification {
         def actualHost = new BlockingVariable<String>()
         def actualPort = new BlockingVariable<Integer>()
         def actualTimeout = new BlockingVariable<Integer>()
-        def actualBody = new BlockingVariable<String>()
+        def line1 = new BlockingVariable<String>()
+        def line2 = new BlockingVariable<String>()
+        int linesOutputted = 0
 
         def socketWriter = Mock(SocketWriter) {
 
@@ -45,7 +54,11 @@ class GraphitePublisherTest extends Specification {
 
             write(_) >> { arguments ->
                 final String line = arguments[0]
-                actualBody.set(line)
+                if (linesOutputted++ == 0) {
+                    line1.set(line)
+                } else {
+                    line2.set(line)
+                }
             }
         }
 
@@ -55,25 +68,25 @@ class GraphitePublisherTest extends Specification {
             }
         }
 
-        def config = Mock(PublisherConfig) {
-            host() >> "https://myhost"
-            port() >> Optional.empty()
-            socketTimeout() >> 900
-        }
+        def publishFrequencyMs = 60000
+        PublisherConfig config = ImmutablePublisherConfig.builder()
+                .type("Graphite")
+                .name("Graphite publisher")
+                .host("https://myhost")
+                .resetCounters(true)
+                .sendOnlyRecentlyUpdatedMetrics(true)
+                .socketTimeout(900)
+                .publishFrequencyMs(publishFrequencyMs)
+                .tags(tags)
+                .build();
 
         def graphitePublisher = new GraphitePublisher(config, socketFactory)
 
-        def metric = ImmutableMetricSnapshot.builder()
-                .name("request")
-                .type(Metric.Type.COUNT)
-                .timestamp(123)
-                .value(100)
-                .tags(ImmutableTags.builder().environment("prod").appName("myapp").build())
-                .build()
-
+        def metricT1 = new SimpleMetric("request", Metric.Type.COUNT, 100, System.currentTimeMillis() - publishFrequencyMs + 1000)
+        def staleMetricT2 = new SimpleMetric("request.other", Metric.Type.COUNT, 120, System.currentTimeMillis() - 2 * publishFrequencyMs)
 
         when:
-        graphitePublisher.publishMetrics([metric])
+        graphitePublisher.publishMetrics([metricT1, staleMetricT2])
 
         then:
         actualHost.get() == "https://myhost"
@@ -81,6 +94,60 @@ class GraphitePublisherTest extends Specification {
         actualTimeout.get() == 900
 
         and:
-        actualBody.get() == "prod.myapp.request.count 100.00 123"
+        line1.get().startsWith("prod.myapp.request.count 100.00")
+
+        when:
+        metricT1.track(120)
+        graphitePublisher.publishMetrics([metricT1])
+
+        then:
+        line2.get().startsWith("prod.myapp.request.count 20.00")
+    }
+
+    def "test send metric using the Graphite publisher with prefix and suffix"() {
+
+        setup:
+
+        def line = new BlockingVariable<String>()
+
+        def socketWriter = Mock(SocketWriter) {
+
+            open(*_) >> {
+            }
+
+            write(_) >> { arguments ->
+                line.set(arguments[0])
+            }
+        }
+
+        def socketFactory = Mock(SocketWriterFactory) {
+            create() >> {
+                return socketWriter
+            }
+        }
+
+        def publishFrequencyMs = 60000
+        PublisherConfig config = ImmutablePublisherConfig.builder()
+                .type("Graphite")
+                .name("Graphite publisher")
+                .host("https://myhost")
+                .resetCounters(true)
+                .sendOnlyRecentlyUpdatedMetrics(true)
+                .socketTimeout(900)
+                .publishFrequencyMs(publishFrequencyMs)
+                .tags(tags)
+                .build();
+
+        def graphitePublisher = new GraphitePublisher(config, socketFactory)
+
+        def bucket = new MetricBucketImpl("request", Metric.Type.COUNT, "prefix", Lists.newArrayList("suffix"))
+        def metric = bucket.getMetric("prefix_value", "suffix_value")
+        metric.track(10)
+
+        when:
+        graphitePublisher.publishMetrics([metric])
+
+        then:
+        line.get().startsWith("prod.myapp.prefix.prefix_value.request.suffix.suffix_value.count 10.00")
     }
 }

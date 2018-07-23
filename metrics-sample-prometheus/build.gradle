@@ -1,0 +1,14 @@
+
+dependencies {
+    compile project(':metrics-guice')
+
+    compile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.4.11.v20180605'
+
+    compile group: 'io.prometheus', name: 'simpleclient_hotspot', version: '0.4.0'
+    compile group: 'io.prometheus', name: 'simpleclient_servlet', version: '0.4.0'
+
+    // logging
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    compile "ch.qos.logback:logback-classic:1.2.3"
+
+}

@@ -15,11 +15,13 @@ package com.adobe.aam.metrics.metric;
 
 import com.google.common.util.concurrent.AtomicDouble;
 
+import java.util.List;
+
 public class MinMetric extends Metric {
 	private AtomicDouble min = new AtomicDouble(Metric.POSITIVE_INFINITY);
 
-	public MinMetric(String name) {
-		super(name);
+	public MinMetric(MetricLabels labels) {
+		super(labels);
 	}
 
 	@Override
@@ -35,7 +37,7 @@ public class MinMetric extends Metric {
 	}
 
 	@Override
-	public double getAndReset() {
+	public double doGetAndReset() {
 		double value = min.getAndSet(Metric.POSITIVE_INFINITY);
 		return value == POSITIVE_INFINITY ? 0 : value;
 	}

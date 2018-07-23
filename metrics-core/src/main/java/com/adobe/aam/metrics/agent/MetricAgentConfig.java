@@ -14,13 +14,22 @@
 package com.adobe.aam.metrics.agent;
 
 import com.adobe.aam.metrics.core.MetricRegistryReporter;
+import com.adobe.aam.metrics.metric.ImmutableTags;
 import com.adobe.aam.metrics.metric.Metric;
+import com.adobe.aam.metrics.metric.Tags;
 import com.adobe.aam.metrics.metric.bucket.MetricBucket;
+import com.typesafe.config.Config;
 import org.immutables.value.Value;
 
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+
+import static com.adobe.aam.metrics.core.config.ConfigUtils.getBoolean;
+import static com.adobe.aam.metrics.core.config.ConfigUtils.getString;
+import static java.net.InetAddress.getLocalHost;
 
 /**
  * The MetricAgent will monitor a set of metrics. On each cycle, it will retrieve the latest values and will send
@@ -61,12 +70,28 @@ public abstract class MetricAgentConfig {
     public abstract Map<Metric, ValueProvider> getMetricValueProviders();
 
     /**
-     * If this is set to true, then the MetricAgent ignore those metrics that have not been updated
-     * since the last cycle. This optimizes the amount of data sent to the backend(s).
+     * @return the tags used for grouping the sent metrics
      */
-    @Value.Default
-    public boolean sendOnlyRecentlyUpdatedMetrics() {
-        return true;
+    public abstract Tags getTags();
+
+    public static Tags tagsFromConfig(Config config) {
+        return ImmutableTags.builder()
+                .environment(getString(config, "env"))
+                .appName(getString(config, "app_name"))
+                .regionName(getString(config, "region"))
+                .clusterName(getString(config, "cluster"))
+                .hostname(getHostname(getBoolean(config, "useHostname", true)))
+                .build();
     }
 
+    private static Optional<String> getHostname(boolean useHostname) {
+
+        try {
+            return useHostname
+                    ? Optional.ofNullable(getLocalHost().getHostName().split("\\.")[0])
+                    : Optional.empty();
+        } catch (UnknownHostException e) {
+            return Optional.empty();
+        }
+    }
 }

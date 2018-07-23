@@ -14,13 +14,9 @@
 package com.adobe.aam.metrics.core.client;
 
 import com.adobe.aam.metrics.BufferedMetricClient;
-import com.adobe.aam.metrics.metric.Tags;
-import com.adobe.aam.metrics.core.ImmutableMetricSnapshot;
-import com.adobe.aam.metrics.core.MetricSnapshot;
 import com.adobe.aam.metrics.core.publish.Publisher;
 import com.adobe.aam.metrics.metric.Metric;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
@@ -39,35 +35,29 @@ public class DefaultMetricClient implements BufferedMetricClient {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultMetricClient.class);
     private final ExecutorService executor;
-    private final Queue<MetricSnapshot> queue;
+    private final Queue<Metric> queue;
     private final Collection<Publisher> metricPublishers;
-    private final Tags tags;
 
-    public DefaultMetricClient(Queue<MetricSnapshot> queue,
+    public DefaultMetricClient(Queue<Metric> queue,
                                Collection<Publisher> metricPublishers,
-                               Tags tags,
                                ExecutorService executorService) {
         this.queue = queue;
         this.metricPublishers = metricPublishers;
-        this.tags = tags;
         this.executor = executorService;
     }
 
-    public DefaultMetricClient(Queue<MetricSnapshot> queue,
-                               Collection<Publisher> metricPublishers,
-                               Tags tags) {
+    public DefaultMetricClient(Queue<Metric> queue,
+                               Collection<Publisher> metricPublishers) {
         this(
                 queue,
                 metricPublishers,
-                tags,
                 MoreExecutors.getExitingExecutorService((ThreadPoolExecutor) Executors.newCachedThreadPool())
         );
     }
 
-    public DefaultMetricClient(Queue<MetricSnapshot> queue,
-                               Publisher metricPublisher,
-                               Tags tags) {
-        this(queue, ImmutableList.of(metricPublisher), tags);
+    public DefaultMetricClient(Queue<Metric> queue,
+                               Publisher metricPublisher) {
+        this(queue, ImmutableList.of(metricPublisher));
     }
 
     public Collection<Publisher> getPublishers() {
@@ -75,42 +65,19 @@ public class DefaultMetricClient implements BufferedMetricClient {
     }
 
     @Override
-    public Tags getTags() {
-        return tags;
+    public void send(Metric metric) {
+        queue.add(metric);
     }
 
     @Override
-    public void sendAndReset(Metric metric, long timestamp) {
-        queue.add(snapshotAndReset(metric, timestamp));
-    }
-
-    @Override
-    public void send(Metric metric, long timestamp) {
-        queue.add(snapshot(metric, timestamp));
-    }
-
-    private MetricSnapshot snapshotAndReset(Metric metric, long timestamp) {
-        return snapshot(metric.getName(), metric.getType(), metric.getAndReset(), timestamp);
-    }
-
-    private MetricSnapshot snapshot(Metric metric, long timestamp) {
-        return snapshot(metric.getName(), metric.getType(), metric.get(), timestamp);
-    }
-
-    private MetricSnapshot snapshot(String name, Metric.Type type, double value, long timestamp) {
-        return ImmutableMetricSnapshot.builder()
-                .name(name)
-                .type(type)
-                .timestamp(timestamp)
-                .value(value)
-                .tags(getTags())
-                .build();
+    public void send(Collection<Metric> metrics) {
+        queue.addAll(metrics);
     }
 
     @Override
     public synchronized void flush() {
         while (!queue.isEmpty() && !Thread.currentThread().isInterrupted()) {
-            List<MetricSnapshot> metrics = takeAll();
+            List<Metric> metrics = takeAll();
             if (!metrics.isEmpty()) {
 
                 metricPublishers.forEach(publisher -> submitToExecutor(publisher, metrics));
@@ -124,8 +91,8 @@ public class DefaultMetricClient implements BufferedMetricClient {
         executor.shutdown();
     }
 
-    private List<MetricSnapshot> takeAll() {
-        List<MetricSnapshot> result = Lists.newArrayList();
+    private List<Metric> takeAll() {
+        List<Metric> result = Lists.newArrayList();
         while (!queue.isEmpty()) {
             result.add(queue.poll());
         }
@@ -133,25 +100,20 @@ public class DefaultMetricClient implements BufferedMetricClient {
         return result;
     }
 
-    private void submitToExecutor(Publisher publisher, Collection<MetricSnapshot> metrics) {
+    private void submitToExecutor(Publisher publisher, Collection<Metric> metrics) {
 
-        List<MetricSnapshot> updatedMetrics = metrics
-                .stream()
-                .filter(publisher::isWhitelisted)
-                .collect(Collectors.toList());
-
-        Iterables.partition(updatedMetrics, nonEmptyBatchSize(publisher.getBatchSize()))
-                .forEach(partitionedMetrics ->
-                        executor.submit(() -> {
-                            try {
-                                publisher.publishMetrics(partitionedMetrics);
-                            } catch (IOException e) {
-                                logger.error("Failed to publish.", e);
-                            }
-                        }));
+        executor.submit(() -> {
+            try {
+                publisher.publishMetrics(getFilteredMetrics(publisher, metrics));
+            } catch (IOException e) {
+                logger.error("Failed to publish.", e);
+            }
+        });
     }
 
-    private int nonEmptyBatchSize(int batchSize) {
-        return batchSize <= 0 ? 500 : batchSize;
+    private Collection<Metric> getFilteredMetrics(Publisher publisher, Collection<Metric> metrics) {
+        return metrics.stream()
+                .filter(publisher::isWhitelisted)
+                .collect(Collectors.toSet());
     }
 }

@@ -14,12 +14,15 @@
 package com.adobe.aam.metrics.filter
 
 import spock.lang.Specification
+import spock.lang.Unroll
 
+import static com.adobe.aam.metrics.Fixtures.genMetric
 import static com.adobe.aam.metrics.Fixtures.metricSnapshot
 import static com.adobe.aam.metrics.metric.Metric.Type.*
 
 class BlacklistMetricFilterTest extends Specification {
 
+    @Unroll("test blacklist filte=#blacklisted")
     def "test blacklist filter"(blacklisted, metric, expectedIsAllowed) {
         setup:
         def filter = new BlacklistMetricFilter(blacklisted)
@@ -31,15 +34,14 @@ class BlacklistMetricFilterTest extends Specification {
         isAllowed == expectedIsAllowed
 
         where:
-        blacklisted = ["*p98", ".*p50", "ugly"]
+        blacklisted = ["*p98", "*p50", "ugly"]
 
-        metric                                           | expectedIsAllowed
-        metricSnapshot("good")                     | true
-        metricSnapshot("my.metric", PERCENTILE_99) | true
-        metricSnapshot("my.metric", PERCENTILE_98) | false
-        metricSnapshot("my.metric", PERCENTILE_95) | true
-        metricSnapshot("my.metric", PERCENTILE_50) | false
-        metricSnapshot("my.ugly.metric")           | false
-        metricSnapshot("my.good.metric")           | true
+        metric                                | expectedIsAllowed
+        genMetric("good")                     | true
+        genMetric("my.metric", PERCENTILE_99) | true
+        genMetric("my.metric", PERCENTILE_98) | false
+        genMetric("my.metric", PERCENTILE_95) | true
+        genMetric("my.metric", PERCENTILE_50) | false
+        genMetric("ugly")                     | false
     }
 }

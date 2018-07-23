@@ -13,20 +13,12 @@
 
 package com.adobe.aam.metrics
 
-import com.adobe.aam.metrics.core.ImmutableMetricSnapshot
-import com.adobe.aam.metrics.core.MetricSnapshot
-import com.adobe.aam.metrics.metric.ImmutableTags
 import com.adobe.aam.metrics.metric.Metric
+import com.adobe.aam.metrics.metric.SimpleMetric
 
 class Fixtures {
 
-    public static MetricSnapshot metricSnapshot(name, type = Metric.Type.COUNT) {
-        return ImmutableMetricSnapshot.builder()
-                .name(name)
-                .type(type)
-                .timestamp(1000)
-                .value(10)
-                .tags(ImmutableTags.builder().build())
-                .build()
+    public static Metric genMetric(name, type = Metric.Type.COUNT) {
+        return new SimpleMetric(name, type)
     }
 }

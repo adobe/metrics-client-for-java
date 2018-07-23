@@ -13,11 +13,11 @@
 
 package com.adobe.aam.metrics.filter;
 
-import com.adobe.aam.metrics.core.MetricSnapshot;
+import com.adobe.aam.metrics.metric.Metric;
 
 public interface MetricFilter {
 
     MetricFilter ALLOW_ALL = metric -> true;
 
-    boolean isAllowed(MetricSnapshot metric);
+    boolean isAllowed(Metric metric);
 }

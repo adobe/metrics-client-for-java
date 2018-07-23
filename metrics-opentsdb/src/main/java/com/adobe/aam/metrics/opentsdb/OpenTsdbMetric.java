@@ -13,8 +13,8 @@
 
 package com.adobe.aam.metrics.opentsdb;
 
+import com.adobe.aam.metrics.metric.Metric;
 import com.adobe.aam.metrics.metric.Tags;
-import com.adobe.aam.metrics.core.MetricSnapshot;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.immutables.value.Value;
@@ -32,10 +32,9 @@ public interface OpenTsdbMetric {
     long timestamp();
     Map<String, String> tags();
 
-    static OpenTsdbMetric from(MetricSnapshot metricSnapshot) {
+    static OpenTsdbMetric from(Metric metric, double metricValue, Tags tags) {
 
         Map<String, String> tagsMap = new HashMap<>();
-        Tags tags = metricSnapshot.tags();
 
         tags.environment().map(value -> tagsMap.put("env", value));
         tags.appName().map(value -> tagsMap.put("appName", value));
@@ -43,11 +42,10 @@ public interface OpenTsdbMetric {
         tags.clusterName().map(value -> tagsMap.put("cluster", value));
         tags.hostname().map(value -> tagsMap.put("hostname", value));
 
-
         return ImmutableOpenTsdbMetric.builder()
-                .metric(metricSnapshot.name() + "." + metricSnapshot.type().getName())
-                .value(metricSnapshot.value())
-                .timestamp(metricSnapshot.timestamp())
+                .metric(metric.getName() + "." + metric.getType().getName())
+                .value(metricValue)
+                .timestamp(System.currentTimeMillis())
                 .putAllTags(tagsMap)
                 .build();
     }

@@ -13,14 +13,15 @@
 
 package com.adobe.aam.metrics.metric;
 
+import java.util.List;
 import java.util.concurrent.atomic.DoubleAdder;
 
 public class CounterMetric extends Metric {
 
 	private final DoubleAdder sum = new DoubleAdder();
 
-	public CounterMetric(String name) {
-		super(name);
+	public CounterMetric(MetricLabels labels) {
+		super(labels);
 	}
 
 	@Override
@@ -29,7 +30,7 @@ public class CounterMetric extends Metric {
 	}
 
 	@Override
-	public double getAndReset() {
+	public double doGetAndReset() {
 		return sum.sumThenReset();
 	}
 

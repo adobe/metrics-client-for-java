@@ -10,21 +10,11 @@
  * governing permissions and limitations under the License.
  *
  */
+package com.adobe.aam.metrics.core.publish;
 
-package com.adobe.aam.metrics.core;
-
-import com.adobe.aam.metrics.metric.Tags;
 import com.adobe.aam.metrics.metric.Metric;
-import org.immutables.value.Value;
 
-@Value.Style(stagedBuilder = true)
-@Value.Immutable
-public interface MetricSnapshot {
+public interface ResetCounterHelper {
 
-    String name();
-    Metric.Type type();
-    long timestamp();
-    double value();
-    Tags tags();
-
+    double resetIfCounter(Metric metric);
 }

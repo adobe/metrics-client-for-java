@@ -24,7 +24,7 @@ import java.util.Collection;
 
 public enum SampleWebServiceMetrics implements MetricBucket {
 
-    REQUEST_COUNT("request", Metric.Type.COUNT),
+    REQUEST_COUNT("request", Metric.Type.COUNT, "subdomain"),
     AVG_REQUEST_BODY_SIZE("request.size", Metric.Type.AVG),
     REJECTED_REQUESTS("request.rejected", Metric.Type.COUNT);
 
@@ -33,8 +33,12 @@ public enum SampleWebServiceMetrics implements MetricBucket {
     private final MetricBucketImpl bucket;
 
     SampleWebServiceMetrics(String name, Metric.Type bucketType) {
-
         bucket = new MetricBucketImpl(name, bucketType);
+    }
+
+    SampleWebServiceMetrics(String name, Metric.Type bucketType, String labelName) {
+
+        bucket = new MetricBucketImpl(name, bucketType, labelName);
     }
 
     public void incrementFor(Object identifier) {

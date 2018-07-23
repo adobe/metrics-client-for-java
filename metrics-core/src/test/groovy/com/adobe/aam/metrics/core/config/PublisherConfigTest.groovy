@@ -14,21 +14,32 @@
 package com.adobe.aam.metrics.core.config
 
 import com.adobe.aam.metrics.core.config.PublisherConfig
+import com.adobe.aam.metrics.metric.ImmutableTags
+import com.adobe.aam.metrics.metric.Tags
 import com.typesafe.config.Config
+import spock.lang.Shared
 import spock.lang.Specification
 
 import java.util.concurrent.TimeUnit
 
 class PublisherConfigTest extends Specification {
 
+    @Shared
+            tags = ImmutableTags.builder().appName("myapp").regionName("us-east-1").build()
+
     def "builder test from typesafe"() {
         setup:
-        Config config =  Mock(Config) {
-            hasPath(_) >> true
+        Config config = Mock(Config) {
+            hasPath(_) >> { args ->
+                if (!args[0].equals("relabel")) {
+                    return true
+                }
+                return false
+            }
         }
 
         when:
-        PublisherConfig.fromConfig(config)
+        PublisherConfig.fromConfig(config, tags)
 
         then:
         1 * config.getString("name") >> "myname"

@@ -14,29 +14,18 @@
 package com.adobe.aam.metrics;
 
 import com.adobe.aam.metrics.metric.Metric;
-import com.adobe.aam.metrics.metric.Tags;
+
+import java.util.Collection;
 
 public interface MetricClient {
 
-    /**
-     * @return the tags used for grouping the sent metrics
-     */
-    Tags getTags();
+    void send(Metric metric);
+
+    void send(Collection<Metric> metrics);
 
     /**
-     * Send a metric with a specified timestamp and reset its value afterwards.
-     *
-     * @param metric    Metric to be sent
-     * @param timestamp timestamp to be used
+     * Flushes the collected metrics to the underlying publishers. Write them immediately to their
+     * intended destination.
      */
-    void sendAndReset(Metric metric, long timestamp);
-
-
-    /**
-     * Send a metric with a specified timestamp.
-     *
-     * @param metric    Type of the metric
-     * @param timestamp Timestamp (in seconds) to be used for the metric
-     */
-    void send(Metric metric, long timestamp);
+    void flush();
 }

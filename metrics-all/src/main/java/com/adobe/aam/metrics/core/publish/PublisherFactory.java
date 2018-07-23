@@ -15,9 +15,10 @@ package com.adobe.aam.metrics.core.publish;
 import com.adobe.aam.metrics.core.config.PublisherConfig;
 import com.adobe.aam.metrics.core.failsafe.FailsafeDispatcher;
 import com.adobe.aam.metrics.core.failsafe.FailsafeDispatcherFactory;
-import com.adobe.aam.metrics.graphite.GraphitePublisher;
 import com.adobe.aam.metrics.core.failsafe.FailsafePublisher;
+import com.adobe.aam.metrics.graphite.GraphitePublisher;
 import com.adobe.aam.metrics.opentsdb.OpenTsdbPublisher;
+import com.adobe.aam.metrics.prometheus.PrometheusPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +48,10 @@ public final class PublisherFactory {
             case "opentsdb":
                 logger.info("Creating OpenTSDB publisher with config: {}", config);
                 publisher = new OpenTsdbPublisher(config);
+                break;
+            case "prometheus":
+                logger.info("Creating Prometheus publisher with config: {}", config);
+                publisher = new PrometheusPublisher(config);
                 break;
             default:
                 throw new IllegalArgumentException("Unable to create metric client of type " + config.type());

@@ -20,7 +20,10 @@ import com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.List;
+
+import static java.util.Collections.emptyList;
 
 /**
  * Represents a bucket of related metrics which can be accessed concurrently.
@@ -33,7 +36,7 @@ public class MetricBucketTest {
     public void testGetMetricsCount() {
         Metric tempMetric;
 		// check initial state
-		MetricBucketImpl bucket = new MetricBucketImpl("requests", Metric.Type.AVG);
+		MetricBucketImpl bucket = new MetricBucketImpl("requests", Metric.Type.AVG, "status");
         Assert.assertEquals("Initial bucket state is not valid.", 0, bucket.getMetrics().size());
 
 		// check first metric added
@@ -41,7 +44,9 @@ public class MetricBucketTest {
         Assert.assertEquals("Bucket state is not valid.", 1, bucket.getMetrics().size());
 		tempMetric = (Metric)(bucket.getMetrics().toArray()[0]);
 		Assert.assertEquals("Metric type is not as expected.", Metric.Type.AVG, tempMetric.getType());
-		Assert.assertEquals("Initial bucket state is not valid.", "requests.succeeded", tempMetric.getName());
+		Assert.assertEquals("requests", tempMetric.getName());
+		Assert.assertEquals(Lists.newArrayList("status"), tempMetric.getLabels().postLabelNames());
+		Assert.assertEquals(Lists.newArrayList("succeeded"), tempMetric.getLabels().postLabelValues());
 
 		// check identical metric added
 		bucket.getMetric("succeeded");
@@ -49,7 +54,9 @@ public class MetricBucketTest {
 		Assert.assertEquals("Metric type is not as expected.", Metric.Type.AVG, tempMetric.getType());
 		tempMetric = (Metric)(bucket.getMetrics().toArray()[0]);
 		Assert.assertEquals("Metric type is not as expected.", Metric.Type.AVG, tempMetric.getType());
-		Assert.assertEquals("Initial bucket state is not valid.", "requests.succeeded", tempMetric.getName());
+		Assert.assertEquals("Initial bucket state is not valid.", "requests", tempMetric.getName());
+		Assert.assertEquals(Lists.newArrayList("status"), tempMetric.getLabels().postLabelNames());
+		Assert.assertEquals(Lists.newArrayList("succeeded"), tempMetric.getLabels().postLabelValues());
 
 		// check other metric added
 		bucket.getMetric("failed");
@@ -60,7 +67,10 @@ public class MetricBucketTest {
     public void testGetMetricsName() {
 	    MetricBucketImpl bucket = new MetricBucketImpl("requests", Metric.Type.AVG);
         bucket.getMetric("succeeded");
-        Assert.assertEquals("Returned metric name is not valid.", "requests.succeeded", bucket.getMetrics().iterator().next().getName());
+		Metric metric = bucket.getMetrics().iterator().next();
+		Assert.assertEquals("Returned metric name is not valid.", "requests", metric.getName());
+		Assert.assertEquals(emptyList(), metric.getLabels().postLabelNames());
+		Assert.assertEquals(Lists.newArrayList("succeeded"), metric.getLabels().postLabelValues());
     }
 
 	@Test
@@ -103,23 +113,31 @@ public class MetricBucketTest {
 
 	@Test
 	public void testMetricNameWithPrefix() {
-		MetricBucketImpl bucket = new MetricBucketImpl("requests", Metric.Type.MIN);
-		Metric metric = bucket.getMetricWithPrefix("prefix");
-		Assert.assertEquals("prefix.requests", metric.getName());
+		MetricBucketImpl bucket = new MetricBucketImpl("requests", Metric.Type.MIN, "customer", emptyList());
+		Metric metric = bucket.getMetricWithPrefix("awesomecustomer");
+		Assert.assertEquals("requests", metric.getName());
+		Assert.assertEquals("customer", metric.getLabels().preLabelName().get());
+		Assert.assertEquals("awesomecustomer", metric.getLabels().preLabelValue().get());
 	}
 
 	@Test
 	public void testMetricNameWithSuffix() {
-		MetricBucketImpl bucket = new MetricBucketImpl("requests", Metric.Type.MIN);
-		Metric metric = bucket.getMetric("suffix1");
-		Assert.assertEquals("requests.suffix1", metric.getName());
+		MetricBucketImpl bucket = new MetricBucketImpl("requests", Metric.Type.MIN, "suffix");
+		Metric metric = bucket.getMetric("suffix_value");
+		Assert.assertEquals("requests", metric.getName());
+		Assert.assertEquals(Lists.newArrayList("suffix"), metric.getLabels().postLabelNames());
+		Assert.assertEquals(Lists.newArrayList("suffix_value"), metric.getLabels().postLabelValues());
 	}
 
 	@Test
 	public void testMetricNameWithPrefixAndSuffixes() {
-		MetricBucketImpl bucket = new MetricBucketImpl("requests", Metric.Type.MIN);
-		Metric metric = bucket.getMetric("prefix", "suffix1", "suffix2");
-		Assert.assertEquals("prefix.requests.suffix1.suffix2", metric.getName());
+		MetricBucketImpl bucket = new MetricBucketImpl("requests", Metric.Type.MIN, "prefix", Lists.newArrayList("suffix1", "suffix1"));
+		Metric metric = bucket.getMetric("prefix_value", "suffix1_value", "suffix2_value");
+		Assert.assertEquals("requests", metric.getName());
+		Assert.assertEquals("prefix", metric.getLabels().preLabelName().get());
+		Assert.assertEquals("prefix_value", metric.getLabels().preLabelValue().get());
+		Assert.assertEquals(Lists.newArrayList("suffix1", "suffix1"), metric.getLabels().postLabelNames());
+		Assert.assertEquals(Lists.newArrayList("suffix1_value", "suffix2_value"), metric.getLabels().postLabelValues());
 	}
 
 	class WorkerThread extends Thread {

@@ -14,25 +14,21 @@
 package com.adobe.aam.metrics.core.client;
 
 import com.adobe.aam.metrics.BufferedMetricClient;
-import com.adobe.aam.metrics.metric.ImmutableTags;
-import com.adobe.aam.metrics.metric.Tags;
 import com.adobe.aam.metrics.core.config.PublisherConfig;
 import com.adobe.aam.metrics.core.publish.Publisher;
 import com.adobe.aam.metrics.core.publish.PublisherFactory;
+import com.adobe.aam.metrics.metric.Tags;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Queues;
 import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static com.adobe.aam.metrics.core.config.ConfigUtils.getBoolean;
-import static com.adobe.aam.metrics.core.config.ConfigUtils.getString;
-import static java.net.InetAddress.getLocalHost;
+import static com.adobe.aam.metrics.core.config.PublisherConfig.fromConfig;
 
 public final class MetricClientFactory {
 
@@ -48,61 +44,30 @@ public final class MetricClientFactory {
      * @param config the client config, containing information such as the backend server, port, batch size etc.
      * @return a Metric Client which uses the config provided.
      */
-    public BufferedMetricClient createMetricClient(PublisherConfig config, Tags tags) {
+    public BufferedMetricClient createMetricClient(PublisherConfig config) {
         return new DefaultMetricClient(
                 Queues.newLinkedBlockingQueue(),
-                publisherFactory.create(config),
-                tags
+                ImmutableList.of(publisherFactory.create(config))
         );
     }
 
     public BufferedMetricClient createMetricClient(Config config, Tags tags) {
         logger.info("Creating metric client using config: {}", config);
-        return createMetricClient(
-                PublisherConfig.fromConfig(config),
-                tags);
+        return createMetricClient(fromConfig(config, tags));
     }
 
     public BufferedMetricClient create(List<? extends Config> configList, Tags tags) {
         return new DefaultMetricClient(
                 Queues.newLinkedBlockingQueue(),
-                getPublishers(configList),
-                tags);
+                getPublishers(configList, tags));
     }
 
-    public BufferedMetricClient create(List<? extends Config> configList, Config tags) {
-        return new DefaultMetricClient(
-                Queues.newLinkedBlockingQueue(),
-                getPublishers(configList),
-                getTags(tags));
-    }
-
-    private Collection<Publisher> getPublishers(List<? extends Config> configList) {
+    private Collection<Publisher> getPublishers(List<? extends Config> configList, Tags tags) {
         return configList
                 .stream()
-                .map(PublisherConfig::fromConfig)
+                .map(config -> fromConfig(config, tags))
                 .map(publisherFactory::create)
                 .collect(Collectors.toList());
     }
 
-    public Tags getTags(Config config) {
-        return ImmutableTags.builder()
-                .environment(getString(config, "env"))
-                .appName(getString(config, "app_name"))
-                .regionName(getString(config, "region"))
-                .clusterName(getString(config, "cluster"))
-                .hostname(getHostname(getBoolean(config, "useHostname", true)))
-                .build();
-    }
-
-    private Optional<String> getHostname(boolean useHostname) {
-
-        try {
-            return useHostname
-                    ? Optional.ofNullable(getLocalHost().getHostName().split("\\.")[0])
-                    : Optional.empty();
-        } catch (UnknownHostException e) {
-            return Optional.empty();
-        }
-    }
 }

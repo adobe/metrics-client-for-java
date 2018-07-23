@@ -15,11 +15,5 @@ package com.adobe.aam.metrics;
 
 public interface BufferedMetricClient extends MetricClient {
 
-    /**
-     * Flushes the collected metrics to the underlying publishers. Write them immediately to their
-     * intended destination.
-     */
-    void flush();
-
     void shutdown();
 }

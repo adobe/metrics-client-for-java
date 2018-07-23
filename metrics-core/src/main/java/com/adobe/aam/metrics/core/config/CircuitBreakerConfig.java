@@ -122,7 +122,7 @@ public interface CircuitBreakerConfig {
                 .build();
     }
 
-    public static CircuitBreakerConfig defaultConfig() {
-        return ImmutableCircuitBreakerConfig.builder().build();
+    public static CircuitBreakerConfig defaultConfig(String name) {
+        return ImmutableCircuitBreakerConfig.builder().name(name).build();
     }
 }

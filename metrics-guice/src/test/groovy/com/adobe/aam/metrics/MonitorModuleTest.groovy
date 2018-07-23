@@ -22,6 +22,7 @@ import com.adobe.aam.metrics.core.client.MetricClientFactory
 import com.adobe.aam.metrics.core.di.MonitorModule
 import com.adobe.aam.metrics.metric.ImmutableTags
 import com.adobe.aam.metrics.metric.Metric
+import com.adobe.aam.metrics.metric.Tags
 import com.adobe.aam.metrics.metric.bucket.MetricBucket
 import com.google.inject.AbstractModule
 import com.google.inject.Guice
@@ -92,8 +93,7 @@ class MonitorModuleTest extends Specification {
         @Provides
         BufferedMetricClient provideMetricClient() {
             Config monitorConfig = config.getObject("monitor").toConfig()
-            ImmutableTags tags = ImmutableTags.builder().build();
-            return new MetricClientFactory().create(monitorConfig.getConfigList("publishers"), tags)
+            return new MetricClientFactory().create(monitorConfig.getConfigList("publishers"), ImmutableTags.builder().build())
         }
 
         @Provides
@@ -114,8 +114,8 @@ class MonitorModuleTest extends Specification {
                 @Override
                 Set<MetricRegistryReporter> getMetricRegistries() {
                     return [new MetricRegistryReporter() {
-                        void reportTo(MetricClient metricClient) {
-
+                        Collection<Metric> getMetrics() {
+                            Collections.emptyList()
                         }
                     }] as Set
                 }
@@ -126,8 +126,8 @@ class MonitorModuleTest extends Specification {
                 }
 
                 @Override
-                public boolean sendOnlyRecentlyUpdatedMetrics() {
-                    return config.getBoolean("monitor.sendOnlyRecentlyUpdatedMetrics");
+                Tags getTags() {
+                    return ImmutableTags.builder().build()
                 }
 
                 @Override

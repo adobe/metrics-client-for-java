@@ -12,10 +12,11 @@
  */
 package com.adobe.aam.metrics.core.failsafe;
 
-import com.adobe.aam.metrics.core.MetricSnapshot;
+import com.adobe.aam.metrics.core.config.PublisherConfig;
 import com.adobe.aam.metrics.core.publish.Publisher;
+import com.adobe.aam.metrics.metric.Metric;
 
-import java.util.List;
+import java.util.Collection;
 
 /**
  * Responsible for publishing a given set of metrics to the Backend.
@@ -39,13 +40,8 @@ public final class FailsafePublisher implements Publisher {
     }
 
     @Override
-    public int getBatchSize() {
-        return publisher.getBatchSize();
-    }
-
-    @Override
-    public List<com.adobe.aam.metrics.filter.MetricFilter> getMetricFilters() {
-        return publisher.getMetricFilters();
+    public PublisherConfig config() {
+        return publisher.config();
     }
 
     @Override
@@ -54,7 +50,7 @@ public final class FailsafePublisher implements Publisher {
     }
 
     @Override
-    public void publishMetrics(List<MetricSnapshot> metrics) {
+    public void publishMetrics(Collection<Metric> metrics) {
         if (metrics.isEmpty()) {
             return;
         }

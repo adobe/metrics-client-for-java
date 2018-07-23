@@ -1,8 +1,10 @@
 package com.adobe.aam.metrics.core;
 
-import com.adobe.aam.metrics.MetricClient;
+import com.adobe.aam.metrics.metric.Metric;
+
+import java.util.Collection;
 
 public interface MetricRegistryReporter {
 
-    void reportTo(MetricClient metricClient);
+    Collection<Metric> getMetrics();
 }

@@ -18,6 +18,7 @@ import com.adobe.aam.metrics.agent.ImmutableMetricAgentConfig;
 import com.adobe.aam.metrics.agent.MetricAgentConfig;
 import com.adobe.aam.metrics.codahale.CodahaleMetricRegistryReporter;
 import com.adobe.aam.metrics.core.client.MetricClientFactory;
+import com.adobe.aam.metrics.metric.Tags;
 import com.adobe.aam.metrics.sample.SampleWebServiceMetrics;
 import com.adobe.aam.metrics.sample.http.HttpDispatcher;
 import com.google.inject.AbstractModule;
@@ -36,20 +37,24 @@ class MetricAgentConfigModule extends AbstractModule {
     @Provides
     BufferedMetricClient provideMetricClient(MetricClientFactory metricClientFactory, Config config) {
         return metricClientFactory
-                .create(config.getConfigList("monitor.publishers"), config.getConfig("monitor.tags"));
+                .create(config.getConfigList("monitor.publishers"), getTags(config));
     }
 
     @Provides
     MetricAgentConfig provideMetricAgentConfig(Config config, HttpDispatcher httpDispatcher) {
 
         return ImmutableMetricAgentConfig.builder()
-                .sendOnlyRecentlyUpdatedMetrics(config.getBoolean("monitor.sendOnlyRecentlyUpdatedMetrics"))
                 .collectFrequency(config.getDuration("monitor.collectFrequency"))
                 .addMetricBuckets(SampleWebServiceMetrics.values())
                 .addMetricRegistries(new CodahaleMetricRegistryReporter(SampleWebServiceMetrics.registry))
                 .putMetricValueProviders(SampleWebServiceMetrics.REJECTED_REQUESTS.getParentMetric(),
                         () -> Optional.of((double) httpDispatcher.getRejectedRequestsCount())
                 )
+                .tags(getTags(config))
                 .build();
+    }
+
+    private Tags getTags(Config config) {
+        return MetricAgentConfig.tagsFromConfig(config.getConfig("monitor.tags"));
     }
 }

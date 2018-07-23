@@ -14,8 +14,10 @@
 package com.adobe.aam.metrics.core.client
 
 import com.adobe.aam.metrics.core.failsafe.FailsafePublisher
+import com.adobe.aam.metrics.core.publish.Publisher
 import com.adobe.aam.metrics.graphite.GraphitePublisher
 import com.adobe.aam.metrics.metric.ImmutableTags
+import com.adobe.aam.metrics.metric.Tags
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import spock.lang.Shared
@@ -25,8 +27,9 @@ import static java.util.Optional.of
 
 class MetricClientFactoryTest extends Specification {
 
-    @Shared tags = ImmutableTags.builder().appName("myapp").regionName("us-east-1").build()
-
+    @Shared
+            tags = ImmutableTags.builder().appName("myapp").regionName("us-east-1").build();
+    
     def "test metric client factory for ConfigList with no defined clients"() {
 
         setup:
@@ -63,8 +66,19 @@ class MetricClientFactoryTest extends Specification {
                         host: "myhost"
                         port: 2003
                         batch_size: 500
+                        
                     }
-                ]"""
+                    
+                     
+                ]
+                
+                relabel: {
+                        "pcs\\\\.([^.]+).*": {
+                          "cassandra_table": "\$1"
+                        }
+                  }
+                
+                """
 
         Config config = ConfigFactory.parseString(configString).resolve()
 
@@ -84,12 +98,13 @@ class MetricClientFactoryTest extends Specification {
         when:
         def decorator = (FailsafePublisher) multipleClient.getPublishers().iterator().next()
 
+        def publisher = decorator.getPublisher()
         then:
-        decorator.getPublisher() instanceof GraphitePublisher
-        decorator.getPublisher().config.name() == "Graphite Primary"
-        decorator.getPublisher().config.host() == "myhost"
-        decorator.getPublisher().config.port() == of(2003)
-        decorator.getPublisher().config.batchSize() == 500
+        publisher instanceof GraphitePublisher
+        publisher.config().name() == "Graphite Primary"
+        publisher.config().host() == "myhost"
+        publisher.config().port() == of(2003)
+        publisher.config().batchSize() == 500
     }
 
 
@@ -135,15 +150,15 @@ class MetricClientFactoryTest extends Specification {
         def secondPublisher = it.next().getPublisher()
 
         then:
-        firstPublisher.config.name() == "Graphite Primary"
-        firstPublisher.config.host() == "myhost"
-        firstPublisher.config.port() == of(2003)
-        firstPublisher.config.batchSize() == 500
+        firstPublisher.config().name() == "Graphite Primary"
+        firstPublisher.config().host() == "myhost"
+        firstPublisher.config().port() == of(2003)
+        firstPublisher.config().batchSize() == 500
 
         then:
-        secondPublisher.config.name() == "Graphite Secondary"
-        secondPublisher.config.host() == "otherhost"
-        secondPublisher.config.port() == of(2004)
-        secondPublisher.config.batchSize() == 300
+        secondPublisher.config().name() == "Graphite Secondary"
+        secondPublisher.config().host() == "otherhost"
+        secondPublisher.config().port() == of(2004)
+        secondPublisher.config().batchSize() == 300
     }
 }

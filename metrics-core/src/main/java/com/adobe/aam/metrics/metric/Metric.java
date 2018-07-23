@@ -22,14 +22,20 @@ public abstract class Metric {
 
 	public static final double POSITIVE_INFINITY = Long.MAX_VALUE;
 	public static final double NEGATIVE_INFINITY = Long.MIN_VALUE;
-	private final String name;
-	private long lastUpdate;
+	private final MetricLabels labels;
+	long lastTrack;
+	long lastReset;
 
 	public Metric(String name) {
-		this.name = name;
+		this(ImmutableMetricLabels.builder().metricName(name).build());
 	}
 
-	public enum Type {
+	public Metric(MetricLabels labels) {
+
+		this.labels = labels;
+	}
+
+    public enum Type {
 		AVG("avg"),
 		MIN("min"),
 		MAX("max"),
@@ -100,17 +106,26 @@ public abstract class Metric {
 	 * @return a new metric instance
 	 */
 	public static Metric newInstance(String name, Type type) {
+		return newInstance(ImmutableMetricLabels.builder().metricName(name).build(), type);
+	}
+
+	/**
+	 * @param labels
+	 * @param type the metric type (eg. count)
+	 * @return a new metric instance
+	 */
+	public static Metric newInstance(MetricLabels labels, Type type) {
 		switch (type) {
 			case COUNT:
-				return new CounterMetric(name);
+				return new CounterMetric(labels);
 			case MIN:
-				return new MinMetric(name);
+				return new MinMetric(labels);
 			case MAX:
-				return new MaxMetric(name);
+				return new MaxMetric(labels);
 			case AVG:
-				return new AverageMetric(name);
+				return new AverageMetric(labels);
 			default:
-				return new SimpleMetric(name, type);
+				return new SimpleMetric(labels, type);
 		}
 	}
 
@@ -128,7 +143,7 @@ public abstract class Metric {
 	 * @param value the desired value to be tracked in this metric
 	 */
 	public void track(double value) {
-		lastUpdate = System.currentTimeMillis();
+		lastTrack = System.currentTimeMillis();
 		doTrack(value);
 	}
 
@@ -137,14 +152,23 @@ public abstract class Metric {
 	/**
 	 * @return the time when this metric was last updated
 	 */
-	public long getLastUpdateTime() {
-		return lastUpdate;
+	public long getLastTrackTime() {
+		return lastTrack;
+	}
+
+	public long getLastResetTime() {
+		return lastReset;
 	}
 
 	/**
 	 * @return the metric value and resets it atomically
 	 */
-	public abstract double getAndReset();
+	public double getAndReset() {
+		lastReset = System.currentTimeMillis();
+		return doGetAndReset();
+	}
+
+	public abstract double doGetAndReset();
 
 	/**
 	 * @return the metric value
@@ -152,7 +176,11 @@ public abstract class Metric {
 	public abstract double get();
 
 	public String getName() {
-		return name;
+		return labels.metricName();
+	}
+
+	public MetricLabels getLabels() {
+		return labels;
 	}
 
 	public String toString() {

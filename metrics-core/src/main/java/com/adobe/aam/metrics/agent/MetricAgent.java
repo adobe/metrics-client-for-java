@@ -28,112 +28,107 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * The MetricAgent periodically reports the metric values to the provided metric client.
  */
 public class MetricAgent extends AbstractScheduledService {
 
-	private final static Logger logger = LoggerFactory.getLogger(MetricAgent.class);
+    private final static Logger logger = LoggerFactory.getLogger(MetricAgent.class);
 
-	private final BufferedMetricClient metricClient;
-	private final Collection<Metric> metrics;
-	private final Collection<MetricBucket> metricBuckets;
-	private final Collection<MetricRegistryReporter> codahaleMetricRegistryReporters;
-	private final Duration collectFrequency;
-	private final boolean sendOnlyRecentlyUpdated;
-	private final Map<Metric, ValueProvider> metricValueProviders;
+    private final BufferedMetricClient metricClient;
+    private final Collection<Metric> metrics;
+    private final Collection<MetricBucket> metricBuckets;
+    private final Collection<MetricRegistryReporter> codahaleMetricRegistryReporters;
+    private final Duration collectFrequency;
+    private final Map<Metric, ValueProvider> metricValueProviders;
 
-	public MetricAgent(BufferedMetricClient metricClient, MetricAgentConfig config) {
-		this.metricClient = metricClient;
-		this.collectFrequency = config.getCollectFrequency();
-		this.sendOnlyRecentlyUpdated = config.sendOnlyRecentlyUpdatedMetrics();
-		this.metrics = config.getMetrics();
-		this.metricBuckets = config.getMetricBuckets();
-		this.codahaleMetricRegistryReporters = config.getMetricRegistries();
-		this.metricValueProviders = config.getMetricValueProviders();
-	}
+    public MetricAgent(BufferedMetricClient metricClient, MetricAgentConfig config) {
+        this.metricClient = metricClient;
+        this.collectFrequency = config.getCollectFrequency();
+        this.metrics = config.getMetrics();
+        this.metricBuckets = config.getMetricBuckets();
+        this.codahaleMetricRegistryReporters = config.getMetricRegistries();
+        this.metricValueProviders = config.getMetricValueProviders();
+    }
 
-	@Override
-	protected void startUp() throws Exception {
-		super.startUp();
-		logger.info("Starting metric agent.");
-	}
+    @Override
+    protected void startUp() throws Exception {
+        super.startUp();
+        logger.info("Starting metric agent.");
+    }
 
-	@Override
-	protected void shutDown() throws Exception {
-		logger.info("Stopping metric agent.");
-		metricClient.shutdown();
-		super.shutDown();
-	}
+    @Override
+    protected void shutDown() throws Exception {
+        logger.info("Stopping metric agent.");
+        metricClient.shutdown();
+        super.shutDown();
+    }
 
-	@Override
-	protected Scheduler scheduler() {
-		return Scheduler.newFixedRateSchedule(
-				0,
-				collectFrequency.toMillis(),
-				TimeUnit.MILLISECONDS
-		);
-	}
+    @Override
+    protected Scheduler scheduler() {
+        return Scheduler.newFixedRateSchedule(
+                0,
+                collectFrequency.toMillis(),
+                TimeUnit.MILLISECONDS
+        );
+    }
 
-	@Override
-	protected void runOneIteration() {
+    @Override
+    protected void runOneIteration() {
 
-		ImmutableSet.Builder<Metric> allMetrics = ImmutableSet.<Metric>builder()
-				.addAll(metrics);
-		metricBuckets
-				.forEach(bucket -> allMetrics.addAll(bucket.getMetrics()));
+        ImmutableSet.Builder<Metric> allMetrics = ImmutableSet.<Metric>builder()
+                .addAll(metrics);
+        metricBuckets
+                .forEach(bucket -> allMetrics.addAll(bucket.getMetrics()));
 
-		reportMetrics(Sets.union(allMetrics.build(), metricValueProviders.keySet()));
-		reportMetricRegistries();
-		metricClient.flush();
-	}
+        Stream<Metric> metrics = getWithProvider(Sets.union(allMetrics.build(), metricValueProviders.keySet()));
+        Stream<Metric> metrics2 = getFromMetricRegistries();
+        Set<Metric> combinedMetrics = Stream.concat(metrics, metrics2)
+                .map(metric -> shouldResetMetric(metric)
+                        ? new SimpleMetric(metric.getName(), metric.getType(), metric.getAndReset(), metric.getLastTrackTime())
+                        : metric)
+                .collect(Collectors.toSet());
+        metricClient.send(combinedMetrics);
+        metricClient.flush();
+    }
 
-	private void reportMetrics(Collection<Metric> metrics) {
-		long timestamp = System.currentTimeMillis() / 1000;
+    private boolean shouldResetMetric(Metric metric) {
+        return metric.getType() != Metric.Type.COUNT;
+    }
 
-		for (Metric metric : metrics) {
-			boolean hasValueProvider = metricValueProviders.containsKey(metric);
-			if (hasValueProvider) {
-				reportMetricWithValueProvider(metric, metricValueProviders.get(metric), timestamp);
-			} else {
-				reportMetric(metric, timestamp);
-			}
-		}
-	}
+    private Stream<Metric> getWithProvider(Collection<Metric> metrics) {
+        return metrics.stream()
+                .map(this::getWithValueProvider)
+                .filter(Optional::isPresent)
+                .map(Optional::get);
+    }
 
-	private void reportMetricWithValueProvider(Metric metric, ValueProvider valueProvider, long timestamp) {
-		Optional<Double> value = valueProvider.getValue();
+    private Optional<Metric> getWithValueProvider(Metric metric) {
+        boolean hasValueProvider = metricValueProviders.containsKey(metric);
+        return hasValueProvider
+                ? reportMetricWithValueProvider(metric, metricValueProviders.get(metric))
+                : Optional.of(metric);
+    }
 
-		if (!value.isPresent()) {
-			logger.trace("Metric does not have a value. Not sending over the network. {}", metric);
-		}
+    private Optional<Metric> reportMetricWithValueProvider(Metric metric, ValueProvider valueProvider) {
+        Optional<Double> value = valueProvider.getValue();
 
-		value.map(val -> new SimpleMetric(metric.getName(), metric.getType(), val))
-				.ifPresent(updatedMetric -> metricClient.send(updatedMetric, timestamp));
-	}
+        if (!value.isPresent()) {
+            logger.trace("Metric does not have a value. Not sending over the network. {}", metric);
+        }
 
-	private void reportMetric(Metric metric, long timestamp) {
-		if (sendOnlyRecentlyUpdated) {
-			reportRecentlyUpdatedMetrics(metric, timestamp);
-		} else {
-			metricClient.sendAndReset(metric, timestamp);
-		}
-	}
+        return value.map(val -> new SimpleMetric(metric.getName(), metric.getType(), val));
+    }
 
-	private void reportRecentlyUpdatedMetrics(Metric metric, long timestamp) {
-		boolean wasUpdatedRecently = System.currentTimeMillis() - metric.getLastUpdateTime() <= collectFrequency.toMillis();
+    private Stream<Metric> getFromMetricRegistries() {
 
-		if (wasUpdatedRecently) {
-			metricClient.sendAndReset(metric, timestamp);;
-		} else {
-			logger.trace("Metric was not updated recently. Not sending over the network. {}", metric);
-		}
-	}
-
-	private void reportMetricRegistries() {
-
-		codahaleMetricRegistryReporters.forEach(metricRegistryReporter -> metricRegistryReporter.reportTo(metricClient));
-	}
+        return codahaleMetricRegistryReporters
+                .stream()
+                .flatMap(reporter -> reporter.getMetrics().stream());
+    }
 }

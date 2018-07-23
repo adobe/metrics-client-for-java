@@ -13,7 +13,7 @@
 
 package com.adobe.aam.metrics.filter;
 
-import com.adobe.aam.metrics.core.MetricSnapshot;
+import com.adobe.aam.metrics.metric.Metric;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
@@ -23,34 +23,28 @@ import java.util.stream.Collectors;
  * Case insensitive filter that only allows the desired patterns.
  * This filter uses "contains" when checking each pattern.
  */
-public class WhitelistMetricFilter implements MetricFilter {
+public class WhitelistMetricFilter extends SimpleRegexMetricFilter {
 
-	private static final String WHITELIST_ALL = "*";
-	private final List<String> whitelist;
+    private final List<String> whitelist;
 
-	public WhitelistMetricFilter(List<String> whitelist) {
-		this.whitelist = whitelist
-				.stream()
-				.filter(StringUtils::isNotBlank)
-				.map(item -> item.toLowerCase().trim())
-				.collect(Collectors.toList());
-	}
+    public WhitelistMetricFilter(List<String> whitelist) {
+        this.whitelist = whitelist
+                .stream()
+                .filter(StringUtils::isNotBlank)
+                .map(item -> item.toLowerCase().trim())
+                .collect(Collectors.toList());
+    }
 
-	@Override
-	public boolean isAllowed(MetricSnapshot metric) {
-		final String name = getName(metric);
-		return whitelist.stream()
-				.anyMatch(item -> name.contains(item) || WHITELIST_ALL.equals(item));
-	}
+    @Override
+    public boolean isAllowed(Metric metric) {
+        return whitelist.stream()
+                .anyMatch(filter -> super.filterMatches(filter, metric));
+    }
 
-	private String getName(MetricSnapshot metric) {
-		return metric.name().trim().toLowerCase() + '.' + metric.type().getName();
-	}
-
-	@Override
-	public String toString() {
-		return "WhitelistMetricFilter{" +
-				"whitelist=" + whitelist +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "WhitelistMetricFilter{" +
+                "whitelist=" + whitelist +
+                '}';
+    }
 }

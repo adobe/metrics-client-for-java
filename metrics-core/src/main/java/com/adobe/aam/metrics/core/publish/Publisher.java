@@ -12,22 +12,20 @@
  */
 package com.adobe.aam.metrics.core.publish;
 
-import com.adobe.aam.metrics.core.MetricSnapshot;
-import com.adobe.aam.metrics.filter.MetricFilter;
+import com.adobe.aam.metrics.core.config.PublisherConfig;
+import com.adobe.aam.metrics.metric.Metric;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Collection;
 
 public interface Publisher {
 
-    void publishMetrics(List<MetricSnapshot> metrics) throws IOException;
+    void publishMetrics(Collection<Metric> metrics) throws IOException;
 
-    int getBatchSize();
+    PublisherConfig config();
 
-    List<MetricFilter> getMetricFilters();
-
-    default boolean isWhitelisted(MetricSnapshot metric) {
-        return getMetricFilters()
+    default boolean isWhitelisted(Metric metric) {
+        return config().metricFilters()
                 .stream()
                 .allMatch(metricFilter -> metricFilter.isAllowed(metric));
     }

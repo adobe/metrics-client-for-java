@@ -15,19 +15,40 @@ package com.adobe.aam.metrics.metric;
 
 import com.google.common.util.concurrent.AtomicDouble;
 
+import java.util.List;
+
 public class SimpleMetric extends Metric {
 
 	private final Type type;
 	private final AtomicDouble value;
 
-	public SimpleMetric(String name, Type type) {
-		this(name, type, 0);
+	public SimpleMetric(String metricName, Type type) {
+		this(MetricLabels.of(metricName), type);
 	}
 
-	public SimpleMetric(String name, Type type, double value) {
-		super(name);
+	public SimpleMetric(MetricLabels labels, Type type) {
+		this(labels, type, 0);
+	}
+
+	public SimpleMetric(String metricName, Type type, double value) {
+		this(MetricLabels.of(metricName), type, value);
+	}
+
+	public SimpleMetric(MetricLabels labels, Type type, double value) {
+		this(labels, type, value, System.currentTimeMillis());
+	}
+
+
+
+	public SimpleMetric(String metricName, Type type, double value, long lastTrack) {
+		this(MetricLabels.of(metricName), type, value, lastTrack);
+	}
+
+	public SimpleMetric(MetricLabels labels, Type type, double value, long lastTrack) {
+		super(labels);
 		this.type = type;
 		this.value = new AtomicDouble(value);
+		super.lastTrack = lastTrack;
 	}
 
 	@Override
@@ -36,7 +57,7 @@ public class SimpleMetric extends Metric {
 	}
 
 	@Override
-	public double getAndReset() {
+	public double doGetAndReset() {
 		return value.getAndSet(0);
 	}
 

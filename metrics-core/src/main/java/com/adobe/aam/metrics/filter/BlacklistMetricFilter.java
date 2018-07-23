@@ -13,7 +13,7 @@
 
 package com.adobe.aam.metrics.filter;
 
-import com.adobe.aam.metrics.core.MetricSnapshot;
+import com.adobe.aam.metrics.metric.Metric;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
@@ -23,28 +23,22 @@ import java.util.stream.Collectors;
  * Case insensitive filter that blocks the desired patterns.
  * This filter uses REGEX and contains when checking each pattern.
  */
-public class BlacklistMetricFilter implements MetricFilter {
+public class BlacklistMetricFilter extends SimpleRegexMetricFilter {
 
-	private final List<BlacklistPattern> blacklist;
+	private final List<String> blacklist;
 
 	public BlacklistMetricFilter(List<String> blacklist) {
 		this.blacklist = blacklist
 				.stream()
 				.filter(StringUtils::isNotBlank)
 				.map(item -> item.toLowerCase().trim())
-				.map(BlacklistPattern::of)
 				.collect(Collectors.toList());
 	}
 
 	@Override
-	public boolean isAllowed(MetricSnapshot metric) {
-		final String name = getName(metric);
+	public boolean isAllowed(Metric metric) {
 		return blacklist.stream()
-				.noneMatch(blacklistPattern -> blacklistPattern.matches(name));
-	}
-
-	private String getName(MetricSnapshot metric) {
-		return metric.name().trim().toLowerCase() + '.' + metric.type().getName().trim().toLowerCase();
+				.noneMatch(filter -> super.filterMatches(filter, metric));
 	}
 
 	@Override

@@ -18,14 +18,14 @@ Offers the following features:
 <dependency>
     <groupId>com.adobe.aam</groupId>
     <artifactId>metrics-all</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 </dependency>
 ```
 
 ## Gradle
 ```
 // https://mvnrepository.com/artifact/com.adobe.aam/metrics-all
-compile group: 'com.adobe.aam', name: 'metrics-all', version: '1.0.1'
+compile group: 'com.adobe.aam', name: 'metrics-all', version: '1.0.2'
 ```
 
 # Sample application
@@ -103,7 +103,6 @@ The MetricClientFactory contains a series of methods to create a metric client. 
 ```hocon
 monitor {
     collectFrequency : 60000ms
-    sendOnlyRecentlyUpdatedMetrics: true
 
     tags {
         env : prod
@@ -120,16 +119,42 @@ monitor {
             host: graphiterelay.com
             port: 2003
             batch_size: 500
+            sendOnlyRecentlyUpdatedMetrics: true
+            resetCounters: true
+            filter.whitelist : [
+              // Only these metrics will be sent through this client.
+              "*"
+            ]
+        },
+        {
+          name: Prometheus
+          type: prometheus
+          sendOnlyRecentlyUpdatedMetrics: false
+          resetCounters: false
+          filter.whitelist : [
+            // Only these metrics will be exposed through this client.
+            "*"
+          ]
+          relabel: {
+            // Relabel example. Useful for 3rd party metrics such as those coming from Codahale.
+            // myapp.db.table1.requests -> myapp_db_requests{db_table="table1"}
+            "db\\.([^.]+).*": [
+              {
+                "db_table": "$1"
+              }
+            ]
+          }
         }
     ]
 }
 ```
 
 
+
 ```java
 // Create metric client.
 MetricClient metricClient = new MetricClientFactory()
-      .create(config.get("monitor.publishers"), config.get("monitor.tags"));
+      .create(config.get("monitor.publishers"));
 ```
 
 ### Send metrics
@@ -150,9 +175,9 @@ List<Metric> metrics = new ArrayList<>();
 ...
 
 MetricAgentConfig config = ImmutableMetricAgentConfig.builder()
-                .sendOnlyRecentlyUpdatedMetrics(config.getBoolean("monitor.sendOnlyRecentlyUpdatedMetrics"))
                 .collectFrequency(config.getDuration("monitor.collectFrequency"))
                 .addMetrics(metrics)
+                .tags(MetricAgentConfig.tagsFromConfig(config.getConfig("monitor.tags")))
                 .build();
 
 MetricAgent metricAgent = new MetricAgent(metricClient, config);

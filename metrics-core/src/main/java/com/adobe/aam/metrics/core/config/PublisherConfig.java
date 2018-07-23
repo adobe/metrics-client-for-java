@@ -15,13 +15,23 @@ package com.adobe.aam.metrics.core.config;
 
 import com.adobe.aam.metrics.filter.MetricFilter;
 import com.adobe.aam.metrics.filter.WhitelistMetricFilter;
-import com.typesafe.config.Config;
+import com.adobe.aam.metrics.metric.Tags;
+import com.google.common.base.CharMatcher;
+import com.google.common.collect.Lists;
+import com.typesafe.config.*;
 import org.immutables.value.Value;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
+import static com.adobe.aam.metrics.core.config.ConfigUtils.getBoolean;
+import static com.adobe.aam.metrics.core.config.ConfigUtils.getDurationMs;
 import static com.adobe.aam.metrics.core.config.ConfigUtils.getInt;
 
 /**
@@ -42,6 +52,15 @@ public interface PublisherConfig {
     Optional<Integer> port();
 
     String name();
+
+    @Value.Default
+    default int publishFrequencyMs() {
+        return 60000;
+    }
+
+    Tags tags();
+
+    List<RelabelConfig> relabelConfigs();
 
     /**
      * Specifies a batch size, which represents how many metric lines to send to the backend server in one connection.
@@ -68,15 +87,33 @@ public interface PublisherConfig {
 
     @Value.Default
     default CircuitBreakerConfig circuitBreakerConfig() {
-        return CircuitBreakerConfig.defaultConfig();
+        return CircuitBreakerConfig.defaultConfig(name());
     }
 
-    static PublisherConfig fromConfig(Config config) {
+    /**
+     * if true, metrics that have not been updated in the last interval are not published.
+     * This optimizes the amount of data sent to the backend(s).
+     */
+    @Value.Default
+    default boolean sendOnlyRecentlyUpdatedMetrics() {
+        return true;
+    }
+
+    /**
+     * if true, the publisher will send the diff between the current counter and the value from the last iteration.
+     */
+    @Value.Default
+    default boolean resetCounters() {
+        return true;
+    }
+
+    static PublisherConfig fromConfig(Config config, Tags tags) {
 
         String name = config.getString("name");
 
+
         return ImmutablePublisherConfig.builder()
-                .host(config.getString("host"))
+                .host(config.hasPath("host") ? config.getString("host") : "")
                 .port(getInt(config, "port"))
                 .name(name)
                 .type(config.getString("type"))
@@ -86,7 +123,44 @@ public interface PublisherConfig {
                 .circuitBreakerConfig(CircuitBreakerConfig.fromConfig(config, name))
                 .addMetricFilters(generateMetricFilter(config, "whitelist"))
                 .addMetricFilters(generateMetricFilter(config, "blacklist"))
+                .sendOnlyRecentlyUpdatedMetrics(getBoolean(config, "sendOnlyRecentlyUpdatedMetrics", false))
+                .tags(tags)
+                .resetCounters(getBoolean(config, "resetCounters", false))
+                .publishFrequencyMs(getDurationMs(config, "publishFrequency", 60000))
+                .relabelConfigs(getRelabelConfigs(config))
                 .build();
+    }
+
+    static List<RelabelConfig> getRelabelConfigs(Config config) {
+        if (!config.hasPath("relabel")) {
+            return Collections.emptyList();
+        }
+        Config relabelConfig = config.getConfig("relabel");
+
+        List<RelabelConfig> relabelConfigs = Lists.newArrayList();
+        relabelConfig.entrySet()
+                .forEach(entry -> {
+                            List<String> keys = ConfigUtil.splitPath(entry.getKey());
+                            Pattern regex = Pattern.compile(keys.get(0));
+                            ImmutableRelabelConfig.Builder relabelConfigBuilder = ImmutableRelabelConfig.builder()
+                                    .regex(regex);
+
+                            ConfigList list = (ConfigList) entry.getValue();
+
+                            list.forEach(
+                                    e -> {
+                                        ConfigObject item = (ConfigObject) e;
+                                        item.forEach((labelName, groupId) -> {
+                                            int groupIdInt = Integer.parseInt(((String) groupId.unwrapped()).replace("$", ""));
+                                            relabelConfigBuilder.putGroupToLabelName(groupIdInt, labelName);
+                                        });
+                                    }
+                            );
+
+                            relabelConfigs.add(relabelConfigBuilder.build());
+                        }
+                );
+        return relabelConfigs;
     }
 
     static MetricFilter generateMetricFilter(Config config, String key) {
