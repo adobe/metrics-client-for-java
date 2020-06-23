@@ -14,20 +14,15 @@
 package com.adobe.aam.metrics.core.config;
 
 import com.adobe.aam.metrics.filter.MetricFilter;
-import com.adobe.aam.metrics.filter.WhitelistMetricFilter;
+import com.adobe.aam.metrics.filter.AllowListMetricFilter;
 import com.adobe.aam.metrics.metric.Tags;
-import com.google.common.base.CharMatcher;
 import com.google.common.collect.Lists;
 import com.typesafe.config.*;
 import org.immutables.value.Value;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import static com.adobe.aam.metrics.core.config.ConfigUtils.getBoolean;
@@ -121,8 +116,8 @@ public interface PublisherConfig {
                 .socketTimeout(getInt(config, "socket_timeout", 10000))
                 .retryPolicyConfig(RetryPolicyConfig.fromConfig(config))
                 .circuitBreakerConfig(CircuitBreakerConfig.fromConfig(config, name))
-                .addMetricFilters(generateMetricFilter(config, "whitelist"))
-                .addMetricFilters(generateMetricFilter(config, "blacklist"))
+                .addMetricFilters(generateMetricFilter(config, "allowList"))
+                .addMetricFilters(generateMetricFilter(config, "blockList"))
                 .sendOnlyRecentlyUpdatedMetrics(getBoolean(config, "sendOnlyRecentlyUpdatedMetrics", false))
                 .tags(tags)
                 .resetCounters(getBoolean(config, "resetCounters", false))
@@ -170,9 +165,9 @@ public interface PublisherConfig {
                 : MetricFilter.ALLOW_ALL;
     }
 
-    static MetricFilter generateMetricFilter(List<String> whitelist) {
-        return whitelist == null
+    static MetricFilter generateMetricFilter(List<String> allowList) {
+        return allowList == null
                 ? MetricFilter.ALLOW_ALL
-                : new WhitelistMetricFilter(whitelist);
+                : new AllowListMetricFilter(allowList);
     }
 }

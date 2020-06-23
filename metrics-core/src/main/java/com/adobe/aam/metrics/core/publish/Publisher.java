@@ -24,7 +24,7 @@ public interface Publisher {
 
     PublisherConfig config();
 
-    default boolean isWhitelisted(Metric metric) {
+    default boolean isAllowed(Metric metric) {
         return config().metricFilters()
                 .stream()
                 .allMatch(metricFilter -> metricFilter.isAllowed(metric));

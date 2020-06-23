@@ -121,7 +121,7 @@ monitor {
             batch_size: 500
             sendOnlyRecentlyUpdatedMetrics: true
             resetCounters: true
-            filter.whitelist : [
+            filter.allowList : [
               // Only these metrics will be sent through this client.
               "*"
             ]
@@ -131,7 +131,7 @@ monitor {
           type: prometheus
           sendOnlyRecentlyUpdatedMetrics: false
           resetCounters: false
-          filter.whitelist : [
+          filter.allowList : [
             // Only these metrics will be exposed through this client.
             "*"
           ]

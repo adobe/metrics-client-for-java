@@ -23,12 +23,12 @@ import java.util.stream.Collectors;
  * Case insensitive filter that blocks the desired patterns.
  * This filter uses REGEX and contains when checking each pattern.
  */
-public class BlacklistMetricFilter extends SimpleRegexMetricFilter {
+public class BlockListMetricFilter extends SimpleRegexMetricFilter {
 
-	private final List<String> blacklist;
+	private final List<String> blockList;
 
-	public BlacklistMetricFilter(List<String> blacklist) {
-		this.blacklist = blacklist
+	public BlockListMetricFilter(List<String> blockList) {
+		this.blockList = blockList
 				.stream()
 				.filter(StringUtils::isNotBlank)
 				.map(item -> item.toLowerCase().trim())
@@ -37,14 +37,14 @@ public class BlacklistMetricFilter extends SimpleRegexMetricFilter {
 
 	@Override
 	public boolean isAllowed(Metric metric) {
-		return blacklist.stream()
+		return blockList.stream()
 				.noneMatch(filter -> super.filterMatches(filter, metric));
 	}
 
 	@Override
 	public String toString() {
-		return "BlacklistMetricFilter{" +
-				"blacklist=" + blacklist +
+		return "BlockListMetricFilter{" +
+				"blocklist=" + blockList +
 				'}';
 	}
 }

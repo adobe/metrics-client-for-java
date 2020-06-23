@@ -4,11 +4,6 @@ buildscript {
     }
 }
 
-plugins {
-    id 'me.champeau.gradle.jmh' version '0.4.4'
-    id 'net.ltgt.apt' version '0.12'
-    id "net.ltgt.apt-idea" version "0.12"
-}
 
 if (!project.hasProperty("NEXUS_USERNAME")) {
     println "No NEXUS_USERNAME found"
@@ -21,40 +16,16 @@ if (!project.hasProperty("NEXUS_PASSWORD")) {
 }
 
 allprojects {
-    apply plugin: 'net.ltgt.apt'
-    apply plugin: 'net.ltgt.apt-idea'
 
     apply plugin: 'maven'
     apply plugin: 'signing'   
 }
 
-idea {
-    project {
-        // experimental: whether annotation processing will be configured in the IDE; only actually used with the 'idea' task.
-        configureAnnotationProcessing = true
-    }
-    module {
-        apt {
-            // whether generated sources dirs are added as generated sources root
-            addGeneratedSourcesDirs = true
-            // whether the apt and testApt dependencies are added as module dependencies
-            addAptDependencies = true
-
-            // The following are mostly internal details; you shouldn't ever need to configure them.
-            // whether the compileOnly and testCompileOnly dependencies are added as module dependencies
-            addCompileOnlyDependencies = false // defaults to true in Gradle < 2.12
-            // the dependency scope used for apt and/or compileOnly dependencies (when enabled above)
-            mainDependenciesScope = "PROVIDED" // defaults to "COMPILE" in Gradle < 3.4, or when using the Gradle integration in IntelliJ IDEA
-        }
-    }
-}
 
 allprojects {
 
     apply plugin: "java"
     apply plugin: "groovy"
-    apply plugin: 'net.ltgt.apt'
-    apply plugin: 'net.ltgt.apt-idea'
 
     sourceCompatibility = 1.8
 
@@ -147,7 +118,7 @@ subprojects {
         compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.4'
 
         compileOnly "org.immutables:value:2.5.5:annotations"
-        apt         "org.immutables:value:2.5.5"
+        annotationProcessor "org.immutables:value:2.5.5"
 
         testCompile 'junit:junit:4.11'
         testCompile 'org.hamcrest:hamcrest-all:1.3'

@@ -37,7 +37,7 @@ class DefaultMetricClientTest extends Specification {
                 actualMetricsSent.set(metrics[0])
             }
 
-            isWhitelisted(*_) >> true
+            isAllowed(*_) >> true
 
             config() >> Mock(PublisherConfig)
         }
@@ -66,7 +66,7 @@ class DefaultMetricClientTest extends Specification {
                 actualMetricsSent.set(metrics[0])
             }
 
-            isWhitelisted(*_) >> true
+            isAllowed(*_) >> true
 
             config() >> Mock(PublisherConfig)
         }
@@ -107,7 +107,7 @@ class DefaultMetricClientTest extends Specification {
                 actualMetricsSent.set(metrics[0])
             }
 
-            isWhitelisted(*_) >> {
+            isAllowed(*_) >> {
                 metric -> "only-this-metric".equals(metric[0].getName())
             }
 
