@@ -17,15 +17,14 @@ import spock.lang.Specification
 import spock.lang.Unroll
 
 import static com.adobe.aam.metrics.Fixtures.genMetric
-import static com.adobe.aam.metrics.Fixtures.metricSnapshot
 import static com.adobe.aam.metrics.metric.Metric.Type.*
 
-class BlacklistMetricFilterTest extends Specification {
+class BlockListMetricFilterTest extends Specification {
 
-    @Unroll("test blacklist filte=#blacklisted")
-    def "test blacklist filter"(blacklisted, metric, expectedIsAllowed) {
+    @Unroll("test blockList filter=#blocklisted")
+    def "test blocklist filter"(blocked, metric, expectedIsAllowed) {
         setup:
-        def filter = new BlacklistMetricFilter(blacklisted)
+        def filter = new BlockListMetricFilter(blocked)
 
         when:
         def isAllowed = filter.isAllowed(metric)
@@ -34,7 +33,7 @@ class BlacklistMetricFilterTest extends Specification {
         isAllowed == expectedIsAllowed
 
         where:
-        blacklisted = ["*p98", "*p50", "ugly"]
+        blocked = ["*p98", "*p50", "ugly"]
 
         metric                                | expectedIsAllowed
         genMetric("good")                     | true

@@ -113,7 +113,7 @@ public class DefaultMetricClient implements BufferedMetricClient {
 
     private Collection<Metric> getFilteredMetrics(Publisher publisher, Collection<Metric> metrics) {
         return metrics.stream()
-                .filter(publisher::isWhitelisted)
+                .filter(publisher::isAllowed)
                 .collect(Collectors.toSet());
     }
 }

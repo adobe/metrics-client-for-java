@@ -7,12 +7,12 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class CodahaleWhitelistMetricFilter implements MetricFilter {
+public class CodahaleAllowListMetricFilter implements MetricFilter {
 
-    private final List<String> whitelist;
+    private final List<String> allowList;
 
-    public CodahaleWhitelistMetricFilter(List<String> whitelist) {
-        this.whitelist = whitelist
+    public CodahaleAllowListMetricFilter(List<String> allowList) {
+        this.allowList = allowList
                 .stream()
                 .filter(StringUtils::isNotBlank)
                 .map(item -> item.toLowerCase().trim())
@@ -24,7 +24,7 @@ public class CodahaleWhitelistMetricFilter implements MetricFilter {
 
         final String nameLowerCase = name.trim().toLowerCase();
 
-        return whitelist.stream()
+        return allowList.stream()
                 .anyMatch(item -> nameLowerCase.contains(item) || "*".equals(item));
     }
 }

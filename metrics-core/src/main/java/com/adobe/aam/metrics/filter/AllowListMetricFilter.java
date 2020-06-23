@@ -23,12 +23,12 @@ import java.util.stream.Collectors;
  * Case insensitive filter that only allows the desired patterns.
  * This filter uses "contains" when checking each pattern.
  */
-public class WhitelistMetricFilter extends SimpleRegexMetricFilter {
+public class AllowListMetricFilter extends SimpleRegexMetricFilter {
 
-    private final List<String> whitelist;
+    private final List<String> allowList;
 
-    public WhitelistMetricFilter(List<String> whitelist) {
-        this.whitelist = whitelist
+    public AllowListMetricFilter(List<String> allowList) {
+        this.allowList = allowList
                 .stream()
                 .filter(StringUtils::isNotBlank)
                 .map(item -> item.toLowerCase().trim())
@@ -37,14 +37,14 @@ public class WhitelistMetricFilter extends SimpleRegexMetricFilter {
 
     @Override
     public boolean isAllowed(Metric metric) {
-        return whitelist.stream()
+        return allowList.stream()
                 .anyMatch(filter -> super.filterMatches(filter, metric));
     }
 
     @Override
     public String toString() {
-        return "WhitelistMetricFilter{" +
-                "whitelist=" + whitelist +
+        return "AllowListMetricFilter{" +
+                "allowList=" + allowList +
                 '}';
     }
 }

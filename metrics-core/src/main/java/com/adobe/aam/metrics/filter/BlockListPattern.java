@@ -20,19 +20,19 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-public class BlacklistPattern {
+public class BlockListPattern {
 
-    private final static Logger logger = LoggerFactory.getLogger(BlacklistPattern.class);
+    private final static Logger logger = LoggerFactory.getLogger(BlockListPattern.class);
     private final String patternString;
     private final Pattern pattern;
 
-    public BlacklistPattern(String patternString, Pattern pattern) {
+    public BlockListPattern(String patternString, Pattern pattern) {
 
         this.patternString = patternString;
         this.pattern = pattern;
     }
 
-    public static BlacklistPattern of(String patternString) {
+    public static BlockListPattern of(String patternString) {
         Pattern pattern = null;
 
         String regex = patternString.replaceAll(".", "[$0]").replace("[*]", ".*");
@@ -40,10 +40,10 @@ public class BlacklistPattern {
         try {
             pattern = Pattern.compile(regex);
         } catch (PatternSyntaxException e) {
-            logger.warn("Unable to parse blacklist pattern: {}", patternString);
+            logger.warn("Unable to parse block list pattern: {}", patternString);
         }
 
-        return new BlacklistPattern(patternString, pattern);
+        return new BlockListPattern(patternString, pattern);
     }
 
     public Optional<Pattern> getPattern() {
@@ -51,7 +51,7 @@ public class BlacklistPattern {
     }
 
     public boolean matches(String input) {
-        boolean isBlacklisted = getPattern().isPresent() && getPattern().get().matcher(input).find();
-        return isBlacklisted || input.contains(patternString);
+        boolean isBlocked = getPattern().isPresent() && getPattern().get().matcher(input).find();
+        return isBlocked || input.contains(patternString);
     }
 }

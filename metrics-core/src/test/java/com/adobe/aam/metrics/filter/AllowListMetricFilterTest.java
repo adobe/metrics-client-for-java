@@ -21,22 +21,22 @@ import org.junit.Test;
 
 import java.util.List;
 
-public class WhitelistMetricFilterTest {
+public class AllowListMetricFilterTest {
 
 	@Test
-	public void testWhitelistAll() {
-		List<String> whitelist = Lists.newArrayList();
-		whitelist.add("*");
-		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
+	public void testAllowAll() {
+		List<String> allowList = Lists.newArrayList();
+		allowList.add("*");
+		AllowListMetricFilter filter = new AllowListMetricFilter(allowList);
 		Assert.assertTrue(filter.isAllowed(metric("metric.name")));
 	}
 
 	@Test
-	public void testWhitelistWithValidItems() {
-		List<String> whitelist = Lists.newArrayList();
-		whitelist.add("good.metric");
-		whitelist.add("better.metric");
-		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
+	public void testAllowListWithValidItems() {
+		List<String> allowList = Lists.newArrayList();
+		allowList.add("good.metric");
+		allowList.add("better.metric");
+		AllowListMetricFilter filter = new AllowListMetricFilter(allowList);
 		Assert.assertTrue(filter.isAllowed(metric("good.metric")));
 		Assert.assertTrue(filter.isAllowed(metric("better.metric")));
 		Assert.assertFalse(filter.isAllowed(metric("bad.metric")));
@@ -44,9 +44,9 @@ public class WhitelistMetricFilterTest {
 
 	@Test
 	public void testCaseInsensitive() {
-		List<String> whitelist = Lists.newArrayList();
-		whitelist.add("GooD");
-		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
+		List<String> allowList = Lists.newArrayList();
+		allowList.add("GooD");
+		AllowListMetricFilter filter = new AllowListMetricFilter(allowList);
 		Assert.assertTrue(filter.isAllowed(metric("good")));
 		Assert.assertTrue(filter.isAllowed(metric("gOOd")));
 		Assert.assertTrue(filter.isAllowed(metric("gOOD")));
@@ -54,28 +54,28 @@ public class WhitelistMetricFilterTest {
 	}
 
 	@Test
-	public void testEmptyWhitelist() {
-		List<String> whitelist = Lists.newArrayList();
-		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
+	public void testEmptyAllowList() {
+		List<String> allowList = Lists.newArrayList();
+		AllowListMetricFilter filter = new AllowListMetricFilter(allowList);
 		Assert.assertFalse(filter.isAllowed(metric("metric.name")));
 		Assert.assertFalse(filter.isAllowed(metric("other.metric.name")));
 	}
 
 	@Test
 	public void testBlankItem() {
-		List<String> whitelist = Lists.newArrayList();
-		whitelist.add("metric.name");
-		whitelist.add("");
-		whitelist.add("  ");
-		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
+		List<String> allowList = Lists.newArrayList();
+		allowList.add("metric.name");
+		allowList.add("");
+		allowList.add("  ");
+		AllowListMetricFilter filter = new AllowListMetricFilter(allowList);
 		Assert.assertTrue(filter.isAllowed(metric("metric.name")));
 	}
 
 	@Test
 	public void testItemWithEndingRegex() {
-		List<String> whitelist = Lists.newArrayList();
-		whitelist.add("pcs.*");
-		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
+		List<String> allowList = Lists.newArrayList();
+		allowList.add("pcs.*");
+		AllowListMetricFilter filter = new AllowListMetricFilter(allowList);
 		Assert.assertTrue(filter.isAllowed(metric("pcs.metric1")));
 		Assert.assertFalse(filter.isAllowed(metric("other.metric")));
 		Assert.assertFalse(filter.isAllowed(metric("other.metric.pcs")));
@@ -83,9 +83,9 @@ public class WhitelistMetricFilterTest {
 
 	@Test
 	public void testItemWithStartAndEndRegex() {
-		List<String> whitelist = Lists.newArrayList();
-		whitelist.add("*pcs*");
-		WhitelistMetricFilter filter = new WhitelistMetricFilter(whitelist);
+		List<String> allowList = Lists.newArrayList();
+		allowList.add("*pcs*");
+		AllowListMetricFilter filter = new AllowListMetricFilter(allowList);
 		Assert.assertTrue(filter.isAllowed(metric("some.pcs.metric")));
 		Assert.assertTrue(filter.isAllowed(metric("pcs.metric")));
 		Assert.assertTrue(filter.isAllowed(metric("metric.pcs")));
